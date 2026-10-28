@@ -1,0 +1,926 @@
+% Cahier des charges : Deep Learning for Spare Parts Management
+% Compilation : xelatex (deux passes pour le sommaire et la pagination)
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath}
+\usepackage{fontspec}
+\usepackage{unicode-math}
+\usepackage[french]{babel}
+\frenchsetup{StandardLists=true}
+
+\setmainfont{Palatino Linotype}
+\setsansfont{Segoe UI}[BoldFont={Segoe UI Semibold}]
+\newfontfamily\affiche{Segoe UI Light}
+\setmathfont{Cambria Math}
+
+\usepackage[top=2.7cm,bottom=2.6cm,left=2.5cm,right=2.5cm,headheight=15pt,headsep=0.8cm,footskip=1.2cm]{geometry}
+\usepackage{xcolor}
+\definecolor{primaire}{HTML}{1F3B57}
+\definecolor{accent}{HTML}{C0602E}
+\definecolor{fond}{HTML}{EEF2F6}
+\definecolor{gris}{HTML}{6F7C89}
+
+\usepackage{microtype}
+\usepackage{setspace}
+\setstretch{1.12}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+
+\usepackage{titlesec}
+\usepackage{titletoc}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{booktabs,tabularx,array,makecell,ragged2e,ltablex}
+\keepXColumns
+\setlength{\LTpre}{0.4em}
+\setlength{\LTpost}{0.9em}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{needspace}
+\usepackage{caption}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,shapes.geometric}
+\usepackage{pgfgantt}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=primaire,citecolor=accent,urlcolor=accent,
+  pdftitle={Cahier des charges, Deep Learning for Spare Parts Management},
+  pdfauthor={Adam Elmadani}}
+\urlstyle{same}
+
+% Titres
+\titleformat{\section}{\sffamily\fontsize{17}{21}\selectfont\color{primaire}}
+  {\textcolor{accent}{\thesection}}{0.7em}{}[\nopagebreak\vspace{-0.3em}\nopagebreak{\color{primaire!18}\titlerule[0.8pt]}]
+\titlespacing*{\section}{0pt}{2.0em}{1.1em}
+\titleformat{\subsection}{\sffamily\bfseries\fontsize{12.5}{15}\selectfont\color{primaire}}
+  {\thesubsection}{0.7em}{}
+\titlespacing*{\subsection}{0pt}{1.4em}{0.4em}
+\newcommand{\intertitre}[1]{\par\vspace{0.3em}{\sffamily\bfseries\color{primaire}#1}\par\vspace{-0.2em}}
+
+% Sommaire
+\titlecontents{section}[0pt]{\addvspace{7pt}\sffamily\bfseries\color{primaire}}
+  {\contentslabel{1.7em}}{}{\hfill\contentspage}
+\titlecontents{subsection}[1.7em]{\addvspace{1pt}\small}
+  {\contentslabel{2.4em}}{}{\titlerule*[0.7pc]{.}\contentspage}
+
+% En-tetes et pieds de page
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[R]{\sffamily\footnotesize\color{gris}\nouppercase{\leftmark}}
+\fancyfoot[L]{\sffamily\footnotesize\color{gris}ENSAM, semestre 9}
+\fancyfoot[R]{\sffamily\footnotesize\color{gris}\thepage\ / \pageref*{LastPage}}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\sectionmark}[1]{\markboth{\thesection\quad #1}{}}
+
+% Listes
+\setlist{itemsep=0.2em,topsep=0.3em,leftmargin=1.4em}
+\setlist[itemize,1]{label={\textcolor{accent}{\small\textbullet}}}
+
+% Tableaux et figures
+\renewcommand{\arraystretch}{1.28}
+\newcolumntype{L}{>{\RaggedRight\arraybackslash}X}
+\newcolumntype{P}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+\newcommand{\hd}[1]{\leavevmode{\sffamily\bfseries\color{primaire}#1}}
+\setlength{\heavyrulewidth}{0.9pt}
+\setlength{\lightrulewidth}{0.4pt}
+\captionsetup{font=small,labelfont={sf,bf,color=primaire},labelsep=period,
+  justification=raggedright,singlelinecheck=false,skip=6pt}
+\captionsetup[table]{position=top}
+\addto\captionsfrench{%
+  \renewcommand{\tablename}{Tableau}%
+  \renewcommand{\contentsname}{Sommaire}%
+  \renewcommand{\refname}{Références}}
+
+\tikzset{
+  fl/.style={-{Stealth[length=2mm,width=1.6mm]},draw=primaire!70,line width=0.6pt},
+  fl2/.style={{Stealth[length=2mm,width=1.6mm]}-{Stealth[length=2mm,width=1.6mm]},draw=primaire!70,line width=0.6pt},
+  lien/.style={draw=gris,dashed,line width=0.6pt},
+  lbl/.style={font=\sffamily\footnotesize,text=gris!90!black},
+}
+
+\begin{document}
+
+% ---------------------------------------------------------------- Page de garde
+\begin{titlepage}
+\begin{tikzpicture}[remember picture,overlay]
+  \fill[primaire] (current page.north west) rectangle ([xshift=1.3cm]current page.south west);
+  \fill[accent] ([xshift=1.3cm]current page.north west) rectangle ([xshift=1.42cm]current page.south west);
+\end{tikzpicture}
+\sffamily
+\vspace*{0.4cm}
+{\small\color{gris}\addfontfeatures{LetterSpace=6}ÉCOLE NATIONALE SUPÉRIEURE D'ARTS ET MÉTIERS}\par
+\vspace{3pt}
+{\small\color{gris}Semestre 9 \quad·\quad Année universitaire 2026-2027}\par
+\vspace{6.2cm}
+{\color{accent}\rule{2.4cm}{2.5pt}}\par
+\vspace{0.7cm}
+{\affiche\fontsize{36}{42}\selectfont\color{primaire}Cahier des charges}\par
+\vspace{0.55cm}
+{\fontsize{17}{21}\selectfont\color{primaire!80}Deep Learning for Spare Parts Management}\par
+\vspace{0.45cm}
+\parbox{13cm}{\rmfamily\large\itshape\color{gris!80!black}Pilotage conjoint de la maintenance et du stock de pièces de rechange d'une flotte de machines industrielles}\par
+\vfill
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{@{}l@{\hspace{1.4cm}}l@{}}
+\textcolor{gris}{Réalisé par} & Adam Elmadani \\
+\textcolor{gris}{Encadré par} & Pr. Aziza Belmaati \\
+ & Pr. Oumaima Bounou \\
+\textcolor{gris}{Version} & 1.0, octobre 2026 \\
+\end{tabular}
+\vspace*{0.3cm}
+\end{titlepage}
+
+% ---------------------------------------------------------------- Suivi et sommaire
+{\sffamily\fontsize{14}{17}\selectfont\color{primaire}Suivi du document}\par
+\vspace{0.4em}
+\begin{tabularx}{\linewidth}{@{}l l L l@{}}
+\toprule
+\hd{Version} & \hd{Date} & \hd{Objet} & \hd{Rédaction} \\
+\midrule
+1.0 & 29/10/2026 & Version initiale soumise à l'encadrement & A. Elmadani \\
+\bottomrule
+\end{tabularx}
+\addtocounter{table}{-1}
+
+\vspace{1.2cm}
+\tableofcontents
+\newpage
+
+% ================================================================ 1
+\section{Présentation du projet}
+
+\subsection{Contexte}
+
+Dans un atelier de production, la disponibilité des machines dépend de deux éléments que l'on gère souvent séparément : leur fiabilité, et la présence en magasin des pièces nécessaires à leur réparation. Une panne qui survient alors que la pièce est en stock se règle en quelques heures. La même panne en rupture de stock peut immobiliser la machine plusieurs semaines, le temps que le fournisseur livre. À l'inverse, un magasin surdimensionné immobilise un capital important dans des pièces qui ne serviront peut-être jamais.
+
+Les politiques utilisées en pratique reposent le plus souvent sur des seuils fixes : une pièce est recommandée lorsque son stock passe sous un niveau donné, et un composant est remplacé préventivement à intervalle constant. Ces règles sont simples à appliquer, mais elles ignorent l'état réel des machines.
+
+Le projet se place à l'échelle d'une flotte complète. Chaque machine peut être opérationnelle, en panne, en attente d'une pièce ou d'un technicien, en réparation, en maintenance préventive ou en test après intervention, tandis que le stock évolue au rythme des consommations et des livraisons.
+
+\subsection{Problématique}
+
+Le projet doit répondre à la question suivante : une politique pilotée par l'apprentissage profond, qui anticipe les pannes et décide des commandes et des maintenances préventives, permet-elle de réduire le coût total de la flotte, à disponibilité égale ou supérieure, par rapport à une politique classique à seuils fixes correctement réglée ?
+
+La précision « correctement réglée » a son importance. Comparer un modèle d'apprentissage profond à une politique mal paramétrée surestimerait son apport ; la politique de référence sera donc optimisée avant toute comparaison (§\,\ref{sec:politiques}).
+
+\subsection{Objectifs}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}l L P{3.6cm} P{3.7cm}@{}}
+\caption{Objectifs du projet et critères d'acceptation}\\
+\toprule
+\hd{Réf.} & \hd{Objectif} & \hd{Livrable} & \hd{Critère d'acceptation} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Réf.} & \hd{Objectif} & \hd{Livrable} & \hd{Critère d'acceptation} \\
+\midrule
+\endhead
+O1 & Préparer et enrichir le jeu de données Azure : durées des étapes, familles de machines, défauts de fabrication, coûts, stock & Jeu de données enrichi, dictionnaire des données & Schéma validé, aucune fuite d'information temporelle \\
+O2 & Développer un simulateur à événements discrets couplant flux machine, flux stock et techniciens & Module de simulation testé & Taux de panne d'Azure reproduits à 10~\% près \\
+O3 & Prédire les pannes et les besoins en pièces & Modèles entraînés, rapport de métriques & Rappel et F1 supérieurs à ceux de LightGBM \\
+O4 & Apprendre une politique de commande et de maintenance préventive par apprentissage par renforcement profond & Agent entraîné & Coût total inférieur à la meilleure politique à seuils fixes, à disponibilité au moins égale \\
+O5 & Accélérer l'évaluation de scénarios par un modèle de substitution & Modèle de substitution, analyse de sensibilité & $R^2 > 0{,}9$ sur des scénarios non vus \\
+O6 & Restituer les résultats dans une application web & Application déployée, rapport final & Exigences du chapitre~\ref{sec:web} satisfaites \\
+\bottomrule
+\end{tabularx}}
+
+Ces critères pourront être ajustés en accord avec l'encadrement.
+
+% ================================================================ 2
+\section{Périmètre et hypothèses}
+
+\subsection{Périmètre}
+
+Le projet porte sur un site de production unique, doté d'un magasin central et d'une équipe de techniciens partagée entre toutes les machines. La chaîne d'approvisionnement amont est représentée par un délai de livraison aléatoire propre à chaque référence de pièce.
+
+{\small
+\begin{tabularx}{\linewidth}{@{}L L@{}}
+\caption{Éléments inclus et exclus du périmètre}\\
+\toprule
+\hd{Inclus} & \hd{Exclus} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Inclus} & \hd{Exclus} \\
+\midrule
+\endhead
+Flotte de 100 machines réparties en deux familles (§\,\ref{sec:familles}) & Réseau multi-sites et transferts entre magasins \\
+Quatre composants remplaçables par machine, soit quatre références de pièces & Réparation et remise en stock des pièces usagées \\
+Production, défauts de fabrication et contrôle qualité & Ordonnancement détaillé de la production \\
+Commandes normales et commandes urgentes & Raccordement à une GMAO ou à des capteurs réels \\
+Décisions de commande et de maintenance préventive & \\
+Application web de restitution des résultats & \\
+\bottomrule
+\end{tabularx}}
+
+\subsection{Hypothèses de modélisation}
+
+\begin{description}[leftmargin=2.6em,labelwidth=2em,font=\sffamily\bfseries\color{accent}]
+\item[H1] Une panne consomme une pièce du composant défaillant ; une maintenance préventive en consomme également une.
+\item[H2] Le remplacement remet le composant à neuf. Une variante avec réparation imparfaite pourra être étudiée.
+\item[H3] Les machines sont indépendantes, sauf par l'intermédiaire des ressources partagées que sont le stock et les techniciens.
+\item[H4] Aucune pièce n'est prélevée sur une machine pour en réparer une autre.
+\item[H5] Les décisions de gestion sont prises une fois par jour ; les événements sont simulés à la minute près.
+\end{description}
+
+% ================================================================ 3
+\section{Description du système étudié}
+
+\subsection{Fonctionnement d'une machine et du magasin}
+
+Le modèle couple deux flux, en cohérence avec les articles de référence du sujet, qui distinguent les états de la machine, les états du stock et la disponibilité des techniciens. Le flux machine suit la séquence panne, demande de pièce, attente éventuelle, réparation, test puis remise en service. Le flux stock suit la séquence seuil de commande, commande, approvisionnement, réception et mise en stock. Nous avons ajouté un état « attente technicien », absent du sujet, pour rendre compte de la saturation de l'équipe de maintenance.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  etat/.style={draw=gris,line width=0.6pt,rounded corners=2.5pt,minimum width=3.2cm,minimum height=1cm,align=center,fill=white},
+  decision/.style={etat,draw=accent,fill=accent!10,line width=1pt,font=\sffamily\small\bfseries},
+  ressource/.style={etat,fill=fond},
+  question/.style={diamond,draw=gris,line width=0.6pt,aspect=2,inner sep=0.5pt,align=center,fill=white},
+  couloir/.style={font=\sffamily\small\bfseries,text=primaire,anchor=west}
+]
+\node[couloir] at (-0.1,1.15) {Flux machine};
+\node[etat] (op) at (1.6,0) {Opérationnelle};
+\node[etat] (pa) at (5.5,0) {En panne};
+\node[question] (q) at (9.4,0) {Pièce\\en stock ?};
+\node[etat] (ap) at (13.3,0) {Attente pièce};
+\node[decision] (mp) at (5.5,-2.1) {Maintenance\\préventive};
+\node[etat] (at) at (9.4,-2.1) {Attente\\technicien};
+\node[etat] (te) at (5.5,-4.2) {Test};
+\node[etat] (re) at (9.4,-4.2) {Réparation};
+\node[ressource] (tc) at (13.3,-4.2) {Techniciens\\{\footnotesize ressource partagée}};
+
+\draw[fl] (op) -- (pa);
+\draw[fl] (pa) -- (q);
+\draw[fl] (q) -- node[lbl,above]{non} (ap);
+\draw[fl] (q) -- node[lbl,right]{oui} (at);
+\draw[fl] (ap.south) |- node[lbl,above,pos=0.75]{pièce reçue} (at.east);
+\draw[fl] ([xshift=0.7cm]op.south) |- node[lbl,right,pos=0.2]{planifiée} (mp.west);
+\draw[fl] (mp) -- (te);
+\draw[fl] (at) -- (re);
+\draw[fl] ([yshift=1.6mm]re.west) -- ([yshift=1.6mm]te.east);
+\draw[fl] ([yshift=-1.6mm]te.east) -- ([yshift=-1.6mm]re.west);
+\node[lbl,below=1mm] at ($(te.south east)!0.5!(re.south west)$) {échec du test};
+\draw[fl] (te.west) -| node[lbl,above,pos=0.25]{conforme} ([xshift=-0.7cm]op.south);
+\draw[lien] (tc) -- (re);
+
+\draw[gris!35,line width=0.5pt] (-0.1,-5.55) -- (15.6,-5.55);
+\node[couloir] at (-0.1,-6.1) {Flux stock};
+\node[decision] (cm) at (1.6,-7.3) {Commande\\{\footnotesize\mdseries normale ou urgente}};
+\node[etat] (ar) at (5.5,-7.3) {Approvisionnement\\{\footnotesize délai fournisseur}};
+\node[etat] (rc) at (9.4,-7.3) {Réception\\{\footnotesize et contrôle qualité}};
+\node[ressource] (st) at (13.3,-7.3) {Stock magasin\\{\footnotesize quatre références}};
+\draw[fl] (cm) -- (ar);
+\draw[fl] (ar) -- (rc);
+\draw[fl] (rc) -- (st);
+\draw[fl] (st.south) -- ++(0,-0.6) -| node[lbl,below,pos=0.25]{stock sous le seuil de commande $s$} (cm.south);
+\draw[lien] (ap.east) -- ++(0.55,0) |- (st.east);
+\node[lbl,anchor=east,align=right] at (15.3,-1.3) {demande\\de pièce};
+\end{tikzpicture}
+\caption{Flux machine, flux stock et ressource techniciens. Les cases en couleur sont les deux points où intervient la politique de gestion.}
+\label{fig:flux}
+\end{figure}
+
+La politique de gestion n'intervient qu'en deux points : le déclenchement d'une maintenance préventive et le passage d'une commande. Le reste du comportement du système découle de ces deux décisions et des aléas que sont les pannes, les délais de livraison et les durées d'intervention.
+
+\subsection{Familles de machines et régimes de maintenance}\label{sec:familles}
+
+À la demande de l'encadrement, la flotte est composée de deux familles de machines qui se distinguent par leur mode d'usure dominant.
+
+La norme NF EN 13306 \cite{en13306} définit la maintenance préventive systématique comme une maintenance exécutée « à des intervalles de temps préétablis ou selon un nombre défini d'unités d'usage ». Elle la distingue de la maintenance conditionnelle, déclenchée par une mesure de l'état du bien, et de la maintenance prévisionnelle, déclenchée par une prévision de son évolution. C'est cette dernière que l'apprentissage profond doit permettre de mettre en œuvre. Le tableau~\ref{tab:regimes} résume les régimes retenus.
+
+{\small
+\begin{tabularx}{\linewidth}{@{}P{3.4cm} P{3.3cm} L P{3.6cm}@{}}
+\caption{Régimes de maintenance pris en compte}\label{tab:regimes}\\
+\toprule
+\hd{Régime} & \hd{Déclenchement} & \hd{Unité} & \hd{Politique associée \cite{barlow}} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Régime} & \hd{Déclenchement} & \hd{Unité} & \hd{Politique associée \cite{barlow}} \\
+\midrule
+\endhead
+Corrective & Panne & Sans objet & Sans objet \\
+R1 Systématique à l'usage & Compteur atteignant $N$ & Cycles, tours, heures de marche & Remplacement selon l'âge \\
+R2 Systématique calendaire & Date atteignant $T$ & Jours, mois, années & Remplacement par blocs \\
+R3 Conditionnelle & Mesure dépassant un seuil & Vibration, pression, tension, taux de défauts & Seuil d'alarme \\
+R4 Prévisionnelle & Risque prédit dépassant un seuil, ou décision de l'agent & Probabilité de panne & Politique étudiée dans ce projet \\
+\bottomrule
+\end{tabularx}}
+
+\intertitre{Famille U, usage intensif}
+Ces machines s'usent en fonction du nombre de cycles réalisés : presses dont on compte les coups, machines-outils dont on compte les heures de broche. La durée de vie d'un roulement, par exemple, s'exprime en millions de tours \cite{iso281}. Leurs composants principaux suivent le régime R1, et elles fonctionnent sur deux ou trois postes par jour.
+
+\intertitre{Famille C, vieillissement calendaire}
+Certains éléments de ces machines vieillissent même à l'arrêt : joints et flexibles hydrauliques, lubrifiants, isolants, ou équipements soumis à des contrôles réglementaires périodiques. Leurs composants principaux suivent le régime R2, une révision générale est programmée tous les 5 ou 10 ans, et elles fonctionnent sur un ou deux postes par jour.
+
+Trois précisions complètent ce découpage. D'abord, la famille indique le régime dominant et non un régime unique : au sein d'une même machine, chaque composant conserve son propre régime. Ensuite, une échéance de 5 ou 10 ans dépasse l'année d'historique disponible ; elle est donc positionnée à partir de l'âge de la machine, qui varie de 0 à 20 ans dans Azure, la prochaine révision tombant au prochain multiple de l'intervalle. Enfin, une maintenance systématique n'a d'intérêt que si le taux de panne croît avec l'âge du composant, c'est-à-dire si le paramètre de forme de la loi de Weibull vérifie $\beta > 1$. Ce point sera contrôlé composant par composant lors de l'analyse exploratoire.
+
+Une flotte de machines identiques, notée S0, est conservée comme cas de validation du simulateur. La flotte à deux familles constitue le scénario principal S1.
+
+\subsection{Défauts de fabrication}\label{sec:defauts}
+
+Chaque machine produit des pièces pendant ses heures d'ouverture. Lorsqu'un composant se dégrade, la proportion de pièces défectueuses augmente : une machine en fin de vie produit du rebut avant de tomber en panne. Ces défauts de fabrication sont à distinguer des erreurs machine présentes dans Azure, qui sont des alarmes non bloquantes.
+
+La probabilité qu'une pièce produite soit défectueuse est modélisée par
+\begin{equation*}
+p(t) = p_0 + \sum_{k=1}^{4} a_k \, D_k(t)^{\gamma}
+\end{equation*}
+où $p_0$ est le taux de défaut indépendant de la machine (matière, opérateur), $D_k(t) \in [0,1]$ la dégradation du composant $k$, $a_k$ sa contribution, et $\gamma > 1$ traduit l'accélération des défauts en fin de vie.
+
+Chaque composant est associé à un type de défaut (dimensionnel, état de surface, assemblage, aspect), si bien que le type de défaut observé devient un indice de diagnostic. Les pièces sont contrôlées par prélèvement d'une pièce sur vingt ; une pièce défectueuse détectée est mise au rebut ou retouchée. Après chaque intervention, un lot d'essai de cinq pièces est produit et le test échoue si l'une d'elles est défectueuse. Avec $p_0 = 1~\%$, le taux d'échec du test vaut $1 - 0{,}99^5 \approx 4{,}9~\%$.
+
+Ce mécanisme a trois conséquences. La maintenance préventive devient utile même lorsqu'aucune panne n'est imminente, puisqu'elle restaure la qualité. Une dérive du taux de défauts peut servir de déclencheur à la maintenance conditionnelle. Enfin, le taux de rendement synthétique (TRS) devient l'indicateur principal de l'évaluation.
+
+% ================================================================ 4
+\section{Données}
+
+\subsection{Jeu de données de référence}
+
+Nous utilisons le jeu de données Microsoft Azure Predictive Maintenance \cite{azure}, qui décrit 100 machines sur l'année 2015.
+
+{\small
+\begin{tabularx}{\linewidth}{@{}P{2.8cm} L P{2.4cm} P{4.2cm}@{}}
+\caption{Contenu du jeu de données Azure}\\
+\toprule
+\hd{Fichier} & \hd{Contenu} & \hd{Volume} & \hd{Utilisation} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Fichier} & \hd{Contenu} & \hd{Volume} & \hd{Utilisation} \\
+\midrule
+\endhead
+PdM\_telemetry & Tension, vitesse de rotation, pression et vibration, moyennées par heure & 876\,100 lignes & Entrées du module de prédiction, calibration de la télémétrie simulée \\
+PdM\_errors & Erreurs non bloquantes de cinq types & environ 3\,900 lignes & Signes précurseurs de panne \\
+PdM\_maint & Remplacements de composants, planifiés ou non, depuis 2014 & environ 3\,300 lignes & Âge des composants, durées de vie censurées \\
+PdM\_failures & Pannes suivies d'un remplacement (comp1 à comp4) & 761 lignes & Étiquettes, lois de panne, demande en pièces \\
+PdM\_machines & Modèle (quatre modèles) et âge de chaque machine & 100 lignes & Attributs des machines, affectation aux familles \\
+\bottomrule
+\end{tabularx}}
+
+Les volumes approximatifs seront confirmés lors de l'analyse exploratoire. Ce jeu de données présente plusieurs limites que l'enrichissement doit corriger :
+\begin{itemize}
+\item il est lui-même synthétique, ce qui fait de ce projet un démonstrateur méthodologique et non une étude de cas industrielle ;
+\item une panne et le remplacement qui la suit portent le même horodatage, de sorte qu'aucune durée d'intervention n'est observable ;
+\item il ne contient aucune information sur le stock, les commandes, les coûts, les techniciens ou la production ;
+\item l'historique ne couvre qu'une année ;
+\item les machines tournent 24 heures sur 24, ce qui empêche de distinguer l'usure par l'usage du vieillissement calendaire ;
+\item les pannes sont rares, environ 0,09~\% des heures-machine, ce qui exclut l'exactitude (\emph{accuracy}) comme métrique.
+\end{itemize}
+
+\subsection{Durées des étapes du processus}
+
+Nous distinguons deux natures de durées. Les durées intrinsèques, comme le diagnostic, la réparation, le test ou le délai fournisseur, caractérisent le travail à effectuer : elles sont ajoutées sous forme de lois de probabilité. Les durées d'attente, qu'il s'agisse d'attendre une pièce ou un technicien, dépendent au contraire de la politique de gestion et sont produites par le simulateur. Si elles étaient figées dans les données, aucune politique ne pourrait les réduire.
+
+{\small
+\begin{tabularx}{\linewidth}{@{}P{4.4cm} P{3.6cm} P{2.2cm} L@{}}
+\caption{Durées des étapes et lois de probabilité retenues}\label{tab:durees}\\
+\toprule
+\hd{Étape} & \hd{Nature} & \hd{Loi} & \hd{Valeur de départ} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Étape} & \hd{Nature} & \hd{Loi} & \hd{Valeur de départ} \\
+\midrule
+\endhead
+Détection et diagnostic & Intrinsèque & Lognormale & 1 h en moyenne \\
+Attente d'un technicien & Produite par le simulateur & Sans objet & Selon la charge \\
+Attente d'une pièce & Produite par le simulateur & Sans objet & Nulle si la pièce est en stock \\
+Sortie magasin & Intrinsèque & Triangulaire & 0,5 h \\
+Réparation corrective & Intrinsèque, par composant & Lognormale & 4 à 12 h \\
+Maintenance préventive & Intrinsèque, par composant & Lognormale & 60~\% de la réparation corrective \\
+Test après intervention & Intrinsèque & Triangulaire & 1 à 2 h, échec selon le lot d'essai \\
+Traitement d'une commande & Intrinsèque & Constante & 4 h \\
+Délai fournisseur & Intrinsèque, par pièce & Gamma & 3 jours à 8 semaines (tableau~\ref{tab:pieces}) \\
+Réception et contrôle & Intrinsèque & Triangulaire & 2 h \\
+Révision générale, famille C & Intrinsèque & Lognormale & 2 à 5 jours \\
+\bottomrule
+\end{tabularx}}
+
+La loi lognormale est le choix habituel pour les temps de réparation, la loi gamma pour les délais. En l'absence de données réelles, ces valeurs de départ seront soumises à l'analyse de sensibilité (§\,\ref{sec:surrogate}) et remplacées si l'encadrement fournit des valeurs mesurées.
+
+\subsection{Pièces, coûts et ressources}\label{sec:couts}
+
+Les coûts sont exprimés en unités relatives (UR), 1~UR correspondant au prix d'une pièce catalogue. Ce sont en effet les rapports entre coûts, et non leurs montants, qui orientent les décisions ; une conversion en dirhams ou en euros reste possible pour la présentation des résultats.
+
+{\small
+\begin{tabularx}{\linewidth}{@{}l L l P{2.6cm} P{2.3cm}@{}}
+\caption{Références de pièces de rechange}\label{tab:pieces}\\
+\toprule
+\hd{Réf.} & \hd{Nature} & \hd{Prix} & \hd{Délai normal} & \hd{Délai urgent} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Réf.} & \hd{Nature} & \hd{Prix} & \hd{Délai normal} & \hd{Délai urgent} \\
+\midrule
+\endhead
+P1 & Pièce d'usure catalogue (roulement) & 1 UR & 3 à 7 jours & 1 jour \\
+P2 & Pièce d'usure catalogue (kit de joints) & 1 UR & 3 à 7 jours & 1 jour \\
+P3 & Pièce usinée spécifique & 50 UR & 3 à 6 semaines & 1 semaine \\
+P4 & Sous-ensemble (moteur, carte de commande) & 200 UR & 4 à 8 semaines & 1 à 2 semaines \\
+\bottomrule
+\end{tabularx}}
+
+Les références seront affectées aux composants après l'analyse exploratoire : les composants les plus souvent défaillants recevront les pièces catalogue, les plus rarement défaillants les pièces coûteuses, comme c'est généralement le cas en milieu industriel. Le kit de révision générale de la famille C, dont la date d'utilisation est connue à l'avance, est commandé en conséquence et reste hors de la gestion de stock.
+
+{\small
+\begin{tabularx}{\linewidth}{@{}P{3.6cm} P{5.2cm} L@{}}
+\caption{Paramètres de coût}\\
+\toprule
+\hd{Paramètre} & \hd{Valeur de départ} & \hd{Justification} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Paramètre} & \hd{Valeur de départ} & \hd{Justification} \\
+\midrule
+\endhead
+Possession du stock & 25~\% de la valeur de la pièce par an & Ordre de grandeur usuel, entre 20 et 30~\% \\
+Commande & 2 UR par commande & Incite à grouper les commandes de pièces catalogue \\
+Commande urgente & Prix unitaire $\times\,2{,}5$ & Majoration usuelle comprise entre 2 et 3 \\
+Main-d'œuvre & 0,5 UR par heure, heures supplémentaires $\times\,1{,}5$ & Hypothèse \\
+Intervention corrective & Deux fois le coût de la préventive équivalente, hors arrêt & Intervention non planifiée et dommages induits ; rapport testé entre 1,5 et 3 \\
+Arrêt d'une machine & Marge perdue, environ 1 UR par heure d'ouverture & Cadence multipliée par la marge par pièce \\
+Rebut & 0,1 UR par pièce & Matière et temps machine perdus \\
+Retouche & 0,03 UR et 5 min par pièce & Moins coûteuse que le rebut \\
+Rupture de stock & Pas de pénalité propre & Son coût est celui de l'arrêt qu'elle provoque \\
+\bottomrule
+\end{tabularx}}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}L P{4cm} P{4cm}@{}}
+\caption{Paramètres de production par famille}\\
+\toprule
+\hd{Paramètre} & \hd{Famille U} & \hd{Famille C} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Paramètre} & \hd{Famille U} & \hd{Famille C} \\
+\midrule
+\endhead
+Postes de 8 h par jour & 2 ou 3 & 1 ou 2 \\
+Cadence & 60 pièces par heure & 20 pièces par heure \\
+Taux de défaut de base $p_0$ & 1~\% & 1~\% \\
+Contrôle en ligne & 1 pièce sur 20 & 1 pièce sur 20 \\
+Lot d'essai après intervention & 5 pièces & 5 pièces \\
+\bottomrule
+\end{tabularx}}
+
+L'effectif de techniciens sera fixé après l'analyse exploratoire, de façon à obtenir une charge moyenne voisine de 75~\%.
+
+Les coûts de départ seront enfin ajustés une fois le simulateur construit, afin que la meilleure politique à seuils fixes connaisse encore 2 à 10~\% de ruptures. Sans cette précaution, conserver un stock abondant serait toujours la meilleure décision et le problème perdrait son intérêt.
+
+\subsection{Modèle de données}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}P{2.8cm} P{2.6cm} L P{2.9cm}@{}}
+\caption{Tables du jeu de données enrichi}\\
+\toprule
+\hd{Table} & \hd{Grain} & \hd{Contenu principal} & \hd{Origine} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Table} & \hd{Grain} & \hd{Contenu principal} & \hd{Origine} \\
+\midrule
+\endhead
+machines & Une ligne par machine & Modèle, âge, famille, postes, cadence, taux de défaut de base, échéance de révision & Azure et ajouts \\
+components & Modèle et composant & Régime, intervalle de maintenance, paramètres de Weibull, signal précurseur, lois de durée, type de défaut & Calibration et hypothèses \\
+parts & Une ligne par référence & Classe, prix, lois de délai, paramètres de stock & Hypothèses \\
+technicians & Équipe & Effectif, calendrier, coût horaire & Hypothèses \\
+production & Machine et heure & Pièces produites, défectueuses, rebutées, retouchées & Simulateur, Azure enrichi \\
+quality\_events & Un défaut détecté & Type, quantité, composant suspecté, décision & Simulateur \\
+events & Un événement & Horodatage, machine, type d'événement, durée, coût & Simulateur \\
+state\_intervals & Un séjour dans un état & Machine, état, début, fin, cause & Simulateur \\
+ml\_features & Machine et heure & Variables d'apprentissage et étiquettes & Azure et simulateur \\
+\bottomrule
+\end{tabularx}}
+
+La table \texttt{ml\_features} regroupe les variables suivantes :
+\begin{itemize}
+\item statistiques glissantes des quatre signaux, moyenne et écart-type sur 3 h et 24 h ;
+\item nombre d'erreurs par type sur 24 h, taux de défauts sur 8 h et 24 h ;
+\item pour chaque composant, temps écoulé depuis le dernier remplacement en heures calendaires, en heures de marche et en millions de tours, ce dernier compteur étant obtenu en cumulant le signal de rotation pendant les heures de marche ;
+\item distance à la prochaine échéance de maintenance de chaque composant ;
+\item attributs de la machine : âge, modèle, famille, taux d'utilisation ;
+\item contexte logistique : stock disponible, commandes en cours et dates d'arrivée prévues ;
+\item étiquettes : panne du composant dans les 24 h, 48 h et 7 jours, et temps jusqu'à la panne avec indicateur de censure.
+\end{itemize}
+
+% ================================================================ 5
+\section{Solution proposée}
+
+\subsection{Simulateur à événements discrets}
+
+Le simulateur est le socle du projet : il génère les données synthétiques, sert d'environnement d'apprentissage à l'agent et arbitre la comparaison des politiques. Développé avec SimPy, il comprend :
+\begin{itemize}
+\item un processus par machine, qui parcourt les états de la figure~\ref{fig:flux} et journalise chaque transition ;
+\item un modèle de dégradation par composant, fonction de l'usage (R1) ou du temps (R2), dont les pannes suivent une loi de Weibull calibrée sur Azure ;
+\item un générateur de télémétrie, qui superpose au niveau de base observé dans Azure une dérive proportionnelle à la dégradation et un bruit aléatoire ;
+\item un module de production et de qualité conforme au §\,\ref{sec:defauts} ;
+\item le magasin, avec ses stocks, ses commandes en cours et sa file de demandes ;
+\item l'équipe de techniciens, ressource limitée soumise à un calendrier de postes ;
+\item une interface de pilotage qui, chaque jour, expose l'état du système, reçoit les décisions puis fait avancer la simulation jusqu'au lendemain.
+\end{itemize}
+
+\intertitre{Calibration et validation}
+Les lois de Weibull sont ajustées sur les durées séparant deux remplacements dans Azure. Les remplacements planifiés y sont traités comme des observations censurées à droite, ce qui évite de sous-estimer la durée de vie des composants. L'influence du modèle et de l'âge de la machine est prise en compte par un modèle de Weibull à temps de vie accéléré.
+
+Le simulateur est validé en rejouant la politique observée dans Azure : le nombre de pannes par composant doit être reproduit à 10~\% près, et les distributions des signaux sont comparées par un test de Kolmogorov-Smirnov. Un test TSTR \cite{tstr}, qui consiste à entraîner un modèle sur données simulées puis à le tester sur données réelles, vérifie enfin que les données produites restent représentatives.
+
+\intertitre{Exigences techniques}
+Chaque réplication dispose de sa propre graine aléatoire, et les politiques comparées partagent les mêmes nombres aléatoires. Une année simulée pour 100 machines doit s'exécuter en moins de deux secondes, condition nécessaire à l'apprentissage par renforcement. Tous les paramètres sont regroupés dans des fichiers de configuration.
+
+\subsection{Module de prédiction}\label{sec:prediction}
+
+Plutôt qu'une simple classification « panne ou non dans les 24 heures », le module estime pour chaque composant la probabilité de panne pour chacun des 14 jours à venir, selon un modèle de survie en temps discret \cite{gensheimer}. Cette forme de sortie répond directement au besoin de la gestion de stock : la demande attendue d'une pièce sur le délai fournisseur $L$ s'obtient en sommant, sur l'ensemble des machines, les probabilités de panne avant $L$, auxquelles s'ajoutent les maintenances préventives programmées. Les entrées sont une fenêtre glissante de 48 heures des variables de la table \texttt{ml\_features} et les attributs statiques de la machine.
+
+{\small
+\begin{tabularx}{\linewidth}{@{}P{4.2cm} P{5cm} L@{}}
+\caption{Modèles de prédiction comparés}\\
+\toprule
+\hd{Modèle} & \hd{Famille} & \hd{Rôle} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Modèle} & \hd{Famille} & \hd{Rôle} \\
+\midrule
+\endhead
+Régression logistique & Apprentissage classique & Référence minimale \\
+LightGBM \cite{lightgbm} & Gradient boosting & Référence à dépasser \\
+LSTM \cite{lstm} & Réseau récurrent & Modèle cité par le sujet \\
+GRU \cite{gru} & Réseau récurrent & Candidat principal \\
+TCN \cite{tcn} & Convolutions temporelles dilatées & Candidat principal \\
+Transformer & Mécanisme d'attention & Piste complémentaire \\
+\bottomrule
+\end{tabularx}}
+
+Avec 761 pannes seulement, les architectures légères (GRU, TCN) sont privilégiées ; un Transformer risquerait le surapprentissage et ne sera essayé que si le calendrier le permet.
+
+\intertitre{Protocole}
+\begin{itemize}
+\item Découpage temporel strict : apprentissage de janvier à août, validation en septembre et octobre, test en novembre et décembre, complété par un test sur des machines non vues.
+\item Perte pondérée ou perte focale \cite{focal} pour compenser le déséquilibre des classes.
+\item Calibration des probabilités (\emph{temperature scaling} ou régression isotone), contrôlée par le score de Brier, puisque ces probabilités alimentent ensuite les décisions.
+\item Métriques : rappel, précision, F1 et aire sous la courbe précision-rappel par composant, délai d'anticipation des alertes, indice de concordance pour les courbes de survie.
+\item Réglage des hyperparamètres avec Optuna.
+\end{itemize}
+
+\subsection{Agent d'apprentissage par renforcement}
+
+Le problème de décision est formulé comme un processus de décision markovien à pas journalier, chaque épisode couvrant une année d'exploitation.
+
+L'observation comprend, pour chaque référence, le stock disponible, les commandes en cours et les demandes en attente ; pour chaque machine, son état, le temps écoulé depuis les derniers remplacements, la distance aux échéances de maintenance, le risque prédit et le taux de défauts récent ; au niveau global, le nombre de techniciens disponibles et le jour de l'année. La récompense est l'opposé du coût de la journée, qui additionne les coûts de stockage, de commande, d'intervention, d'arrêt et de non-qualité définis au §\,\ref{sec:couts}.
+
+Deux niveaux d'ambition sont prévus. Au niveau N1, l'agent fixe chaque jour, pour chaque composant, un seuil de risque déclenchant la maintenance préventive et un niveau de recomplètement du stock ; une règle simple exécute ensuite ces consignes. L'espace d'actions reste réduit, l'apprentissage est stable et la politique obtenue s'interprète facilement. Au niveau N2, l'agent décide directement des quantités commandées, des commandes urgentes et des maintenances, machine par machine. Le niveau N1 est un livrable garanti ; le niveau N2 sera traité si le calendrier le permet.
+
+L'agent principal repose sur l'algorithme PPO \cite{ppo} avec masquage des actions invalides \cite{masking} : le masque interdit par exemple une maintenance sur une machine déjà en panne, ou en l'absence de pièce en stock. Un DQN \cite{dqn} classique devrait énumérer toutes les combinaisons d'actions, dont le nombre explose avec la taille de la flotte. Pour la comparaison avec cette famille d'algorithmes, nous retenons donc une architecture à branches \cite{bdq}, qui traite chaque dimension de l'action séparément.
+
+{\small
+\begin{tabularx}{\linewidth}{@{}P{5.2cm} L@{}}
+\caption{Algorithmes d'apprentissage par renforcement étudiés}\\
+\toprule
+\hd{Algorithme} & \hd{Rôle dans l'étude} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Algorithme} & \hd{Rôle dans l'étude} \\
+\midrule
+\endhead
+MaskablePPO & Agent principal, niveaux N1 et N2 \\
+PPO sans masque & Mesure de l'apport du masquage \\
+DQN, variantes Double et Dueling & Comparaison sur le niveau N1 \\
+Branching Dueling Q-Network & Comparaison sur le niveau N2 \\
+RecurrentPPO & Variante si l'observabilité partielle pénalise l'agent \\
+\bottomrule
+\end{tabularx}}
+
+L'entraînement s'appuie sur 8 à 16 simulateurs exécutés en parallèle et sur un apprentissage progressif, d'abord sur 10 machines puis sur la flotte complète. Chaque configuration est entraînée avec au moins trois graines différentes afin de rendre compte de la variabilité des résultats.
+
+\subsection{Modèle de substitution}\label{sec:surrogate}
+
+Le modèle de substitution apprend la relation entre les paramètres d'un scénario et ses indicateurs de performance. Il est construit à partir de 2\,000 à 5\,000 scénarios tirés selon un plan en hypercube latin et simulés cinq fois chacun. Ses entrées regroupent les paramètres de politique (seuils de stock, intervalles de maintenance, seuil de risque) et les paramètres du système (nombre de techniciens, délais, taux de panne, coûts) ; ses sorties sont les indicateurs du §\,\ref{sec:indicateurs}.
+
+Le modèle principal est un ensemble de cinq réseaux de neurones \cite{ensembles}, qui fournit à la fois une prédiction et une mesure d'incertitude. Un processus gaussien et LightGBM servent de comparaison. La qualité du modèle est mesurée par le $R^2$ et l'erreur relative moyenne sur des scénarios non vus, et tout optimum qu'il propose est vérifié par simulation.
+
+Le modèle de substitution remplit trois fonctions : optimiser la politique à seuils fixes par optimisation bayésienne, conduire l'analyse de sensibilité globale par les indices de Sobol \cite{saltelli} sur les hypothèses du chapitre~4, et fournir des réponses instantanées à la page « Scénarios » de l'application web.
+
+% ================================================================ 6
+\section{Application web}\label{sec:web}
+
+\subsection{Objectif}
+
+L'application web permet à un responsable maintenance, et lors de la soutenance au jury, d'explorer les données, de suivre une simulation en direct, de consulter les prédictions et de comparer les politiques. Elle est conçue comme un produit à part entière : une identité visuelle propre est définie, et des maquettes sont validées avant le début du développement.
+
+Les outils de tableau de bord écrits en Python (Streamlit, Dash) ont été écartés. Ils sont rapides à mettre en œuvre, mais limitent fortement la mise en page et l'animation. Une interface React donne au contraire un contrôle complet du rendu, ce qui est nécessaire pour animer la flotte et soigner la présentation.
+
+\needspace{8\baselineskip}
+\subsection{Exigences fonctionnelles}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}l L l@{}}
+\caption{Exigences fonctionnelles de l'application}\\
+\toprule
+\hd{Réf.} & \hd{Exigence} & \hd{Priorité} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Réf.} & \hd{Exigence} & \hd{Priorité} \\
+\midrule
+\endhead
+EF-01 & Tableau de bord des indicateurs clés de la flotte : TRS, disponibilité, coût cumulé, ruptures et alertes en cours & Haute \\
+EF-02 & Lancement d'une simulation (politique, scénario, graine) et suivi en direct de la flotte : état de chaque machine, stocks, file des techniciens, vitesse réglable & Haute \\
+EF-03 & Fiche machine : historique des états, télémétrie, courbes de risque par composant, défauts récents & Haute \\
+EF-04 & Suivi du stock : niveau par référence, commandes en cours, ruptures et leur durée & Haute \\
+EF-05 & Comparaison des politiques P0 à P5 : indicateurs avec intervalles de confiance et front de Pareto entre coût et TRS & Haute \\
+EF-06 & Scénarios « et si » : réglage des paramètres par curseurs et réponse immédiate du modèle de substitution & Moyenne \\
+EF-07 & Exploration du jeu de données enrichi, filtrable par machine, famille et composant & Moyenne \\
+EF-08 & Export des tableaux au format CSV et des graphiques au format PNG & Basse \\
+\bottomrule
+\end{tabularx}}
+
+\subsection{Exigences non fonctionnelles}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}l P{2.6cm} L@{}}
+\caption{Exigences non fonctionnelles de l'application}\\
+\toprule
+\hd{Réf.} & \hd{Domaine} & \hd{Exigence} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Réf.} & \hd{Domaine} & \hd{Exigence} \\
+\midrule
+\endhead
+ENF-01 & Ergonomie & Interface en français, réalisée à partir de maquettes Figma et d'un guide de style (palette, typographie, composants) \\
+ENF-02 & Performance & Réponse du modèle de substitution en moins de 300 ms ; affichage d'une année simulée en moins de 2 s en mode accéléré \\
+ENF-03 & Compatibilité & Navigateurs récents ; mise en page adaptée aux écrans d'ordinateur et de tablette, à partir de 768 pixels de large \\
+ENF-04 & Architecture & Le serveur ne réentraîne aucun modèle : il charge les modèles sauvegardés et ne lance que des simulations courtes \\
+ENF-05 & Déploiement & Lancement local par Docker Compose ; version de démonstration accessible par un lien public \\
+ENF-06 & Qualité & Tests de l'API (pytest), des composants (Vitest) et du parcours principal (Playwright) \\
+\bottomrule
+\end{tabularx}}
+
+\subsection{Architecture}
+
+L'application se compose d'une interface monopage développée en React et d'une API FastAPI qui expose le moteur Python. Les échanges courants passent par une API REST. La simulation en direct est transmise jour après jour par WebSocket, ce qui permet d'animer la flotte sans attendre la fin du calcul. La figure~\ref{fig:archi} situe l'application dans l'ensemble du projet.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  bloc/.style={draw=gris,line width=0.6pt,rounded corners=2.5pt,minimum width=4.4cm,minimum height=1.15cm,align=center,fill=white},
+  fort/.style={bloc,draw=accent,fill=accent!10,line width=1pt}
+]
+\node[bloc] (az) at (2.3,0) {\textbf{Jeu de données Azure}\\{\footnotesize 100 machines, année 2015}};
+\node[bloc] (en) at (8.0,0) {\textbf{Enrichissement}\\{\footnotesize durées, défauts, coûts}};
+\node[bloc] (si) at (13.7,0) {\textbf{Simulateur SimPy}\\{\footnotesize flotte, stock, techniciens}};
+\node[bloc] (pr) at (2.3,-2.5) {\textbf{Module de prédiction}\\{\footnotesize GRU, TCN, LSTM, LightGBM}};
+\node[bloc] (ag) at (8.0,-2.5) {\textbf{Agent DRL}\\{\footnotesize MaskablePPO, DQN}};
+\node[bloc] (su) at (13.7,-2.5) {\textbf{Modèle de substitution}\\{\footnotesize ensemble de réseaux}};
+\node[bloc,minimum width=15.8cm] (rs) at (8.0,-4.7) {\textbf{Modèles entraînés et résultats}\\{\footnotesize suivi MLflow, tables Parquet, poids des réseaux}};
+\node[bloc,minimum width=9.8cm] (api) at (5.0,-6.9) {\textbf{API FastAPI}\\{\footnotesize charge les modèles sauvegardés et lance des simulations courtes}};
+\node[bloc,minimum width=5.2cm] (rp) at (13.2,-6.9) {\textbf{Rapport et soutenance}\\{\footnotesize LaTeX, figures, démonstration}};
+\node[fort,minimum width=9.8cm] (ui) at (5.0,-9.1) {\textbf{Interface web React}\\{\footnotesize\mdseries tableau de bord, flotte, machine, stock, comparaison, scénarios}};
+
+\draw[fl] (az) -- (en);
+\draw[fl] (en) -- node[lbl,above]{calibre} (si);
+\draw[fl] ([xshift=-1.4cm]en.south) -- ++(0,-0.65) -| (pr.north);
+\draw[fl2] ([xshift=-1.4cm]si.south) -- ++(0,-0.65) -| node[lbl,above,pos=0.25]{boucle d'entraînement} (ag.north);
+\draw[fl] (si) -- (su);
+\draw[fl] (pr) -- node[lbl,above]{risque} (ag);
+\draw[fl] (pr.south) -- (pr.south |- rs.north);
+\draw[fl] (ag.south) -- (ag.south |- rs.north);
+\draw[fl] (su.south) -- (su.south |- rs.north);
+\draw[fl] (rs.south -| api.north) -- (api.north);
+\draw[fl] (rs.south -| rp.north) -- (rp.north);
+\draw[fl2] (api) -- node[lbl,right]{REST et WebSocket} (ui);
+\end{tikzpicture}
+\caption{Architecture d'ensemble, du jeu de données à l'interface web.}
+\label{fig:archi}
+\end{figure}
+
+% ================================================================ 7
+\section{Évaluation}
+
+\subsection{Politiques comparées}\label{sec:politiques}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}l P{3.7cm} P{3.9cm} L@{}}
+\caption{Politiques de gestion comparées}\\
+\toprule
+\hd{Code} & \hd{Politique} & \hd{Gestion du stock} & \hd{Maintenance préventive} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Code} & \hd{Politique} & \hd{Gestion du stock} & \hd{Maintenance préventive} \\
+\midrule
+\endhead
+P0 & Seuils fixes réglés à la main & $(s,S)$ fixés par l'expérience & Systématique, intervalles constructeur \\
+P1 & Seuils fixes optimisés & $(s,S)$ optimisés & Systématique, intervalles optimisés \\
+P2 & Maintenance conditionnelle & $(s,S)$ optimisés & Seuil sur une mesure ou sur le taux de défauts \\
+P3 & Prédictive sans apprentissage par renforcement & Recomplètement selon la demande prédite & Risque prédit supérieur à un seuil fixe \\
+P4 & Agent DRL, niveau N1 & Fixée par l'agent & Seuil de risque fixé par l'agent \\
+P5 & Agent DRL, niveau N2 & Fixée par l'agent & Décidée par l'agent \\
+Oracle & Connaissance des pannes futures & Idéale & Idéale \\
+\bottomrule
+\end{tabularx}}
+
+La politique P1 est la référence principale. P3 isole l'apport de la prédiction seule, P4 et P5 celui de l'apprentissage par renforcement, et l'oracle fournit une borne qu'aucune politique réaliste ne peut dépasser.
+
+\subsection{Indicateurs de performance}\label{sec:indicateurs}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}P{4cm} L P{2.2cm}@{}}
+\caption{Indicateurs de performance}\\
+\toprule
+\hd{Indicateur} & \hd{Définition} & \hd{Unité} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Indicateur} & \hd{Définition} & \hd{Unité} \\
+\midrule
+\endhead
+TRS & Disponibilité $\times$ performance $\times$ qualité & \% \\
+Disponibilité & Temps opérationnel rapporté au temps d'ouverture & \% \\
+Taux de défauts & Pièces défectueuses rapportées aux pièces produites & \% \\
+Attente de pièce & Durée moyenne d'attente de pièce par intervention & h \\
+Fréquence de ruptures & Demandes non servies immédiatement, rapportées au total des demandes & \% \\
+Coût total & Stockage, commandes, interventions, arrêts et non-qualité & UR par an \\
+Stock immobilisé & Valeur moyenne du stock & UR \\
+MTBF, MTTR & Temps moyen entre pannes, temps moyen de réparation & h \\
+Qualité de prédiction & Rappel, précision, F1, aire sous la courbe précision-rappel & Sans unité \\
+\bottomrule
+\end{tabularx}}
+
+\subsection{Protocole expérimental}
+
+Chaque politique est évaluée sur 30 réplications d'une année, avec des nombres aléatoires communs, et les résultats sont présentés avec leurs intervalles de confiance à 95~\%. Les écarts entre P1 et les politiques fondées sur l'apprentissage sont testés par un test de Wilcoxon apparié, et les compromis entre coût et TRS sont visualisés sur un front de Pareto.
+
+La robustesse de l'agent, entraîné sur le scénario nominal, est ensuite évaluée dans quatre situations : un délai fournisseur doublé, un taux de panne augmenté de 30~\%, un technicien de moins, et la flotte homogène S0.
+
+% ================================================================ 8
+\section{Choix techniques}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}P{5cm} L@{}}
+\caption{Outils retenus}\\
+\toprule
+\hd{Domaine} & \hd{Outils} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Domaine} & \hd{Outils} \\
+\midrule
+\endhead
+Langage et environnement & Python 3.11, gestionnaire uv \\
+Données & pandas, format Parquet \\
+Simulation & SimPy, interface Gymnasium \\
+Apprentissage profond & PyTorch \\
+Apprentissage par renforcement & Stable-Baselines3 et sb3-contrib \cite{sb3} \\
+Apprentissage classique et fiabilité & scikit-learn, LightGBM, lifelines \\
+Optimisation et sensibilité & Optuna, SciPy, SALib \\
+Suivi des expériences & MLflow, TensorBoard \\
+API & FastAPI, Pydantic, WebSocket \\
+Interface & React et TypeScript (Vite), Tailwind CSS, shadcn/ui, Apache ECharts, TanStack Query \\
+Maquettes & Figma \\
+Qualité & pytest, Vitest, Playwright, ruff, GitHub Actions \\
+Déploiement & Docker Compose ; Vercel pour l'interface, Render ou Hugging Face Spaces pour l'API \\
+Rapport & LaTeX \\
+\bottomrule
+\end{tabularx}}
+
+L'ensemble des traitements fonctionne sur processeur ; une carte graphique accélère seulement l'entraînement des modèles de prédiction. Le choix d'un même langage pour le simulateur, les modèles et l'API évite toute conversion entre environnements.
+
+% ================================================================ 9
+\section{Organisation du projet}
+
+\subsection{Livrables}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}P{2.9cm} L P{5.2cm}@{}}
+\caption{Découpage en lots et livrables}\\
+\toprule
+\hd{Lot} & \hd{Contenu} & \hd{Livrable} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Lot} & \hd{Contenu} & \hd{Livrable} \\
+\midrule
+\endhead
+L0 Cadrage & Rédaction et validation du cahier des charges & Cahier des charges validé \\
+L1 Données & Analyse exploratoire, calibration, enrichissement & Jeu de données enrichi, dictionnaire des données \\
+L2 Simulation & Simulateur et politiques P0 à P2 & Module testé, rapport de validation \\
+L3 Prédiction & Modèles LightGBM, LSTM, GRU et TCN & Modèles entraînés, rapport de métriques \\
+L4 Décision & Agents DRL N1 puis N2, politique P3 & Agents entraînés, courbes d'apprentissage \\
+L5 Substitution & Modèle de substitution, sensibilité, optimisation de P1 & Modèle validé, indices de Sobol \\
+L6 Application & Maquettes, API et interface & Application déployée \\
+L7 Restitution & Évaluation finale, rapport, soutenance & Rapport et présentation \\
+\bottomrule
+\end{tabularx}}
+
+\subsection{Planning prévisionnel}
+
+Le planning suppose un démarrage la semaine du 2 novembre 2026 et sera recalé sur la date de soutenance. Les lots L2 et L3 sont menés en parallèle. Le développement de l'application avance d'abord sur des données fictives, puis se raccorde à l'API dès que les modèles sont disponibles. Le lot L5 doit être terminé avant l'évaluation finale, puisqu'il fournit la politique de référence optimisée.
+
+\begin{figure}[H]
+\centering
+\begin{ganttchart}[
+  hgrid={*{1}{draw=gris!18}},
+  vgrid={*{1}{draw=gris!30,dotted}},
+  x unit=0.7cm,
+  y unit title=0.55cm,
+  y unit chart=0.5cm,
+  title/.append style={draw=none,fill=fond},
+  title label font=\sffamily\footnotesize\color{primaire},
+  bar/.append style={fill=primaire!75,draw=none,rounded corners=1.5pt},
+  bar height=0.5,
+  bar top shift=0.25,
+  bar label font=\sffamily\small,
+  milestone/.append style={fill=accent,draw=none},
+  milestone height=0.5,
+  milestone top shift=0.25,
+  milestone label font=\sffamily\small\color{accent!85!black}
+]{1}{14}
+\gantttitle{Semaines}{14} \\
+\gantttitlelist{1,...,14}{1} \\
+\ganttbar{L0 Cadrage}{1}{1} \\
+\ganttbar{L1 Données}{2}{3} \\
+\ganttbar{L2 Simulation}{4}{6} \\
+\ganttbar{L3 Prédiction}{5}{7} \\
+\ganttbar{L4 Décision}{7}{10} \\
+\ganttbar{L5 Substitution}{10}{11} \\
+\ganttbar[bar/.append style={fill=primaire!35}]{L6 Maquettes}{5}{6} \\
+\ganttbar{L6 Application}{7}{12} \\
+\ganttbar{L7 Restitution}{12}{14} \\
+\ganttmilestone{Cahier des charges validé}{1} \\
+\ganttmilestone{Simulateur validé}{6} \\
+\ganttmilestone{Agent N1 opérationnel}{8} \\
+\ganttmilestone{Application déployée}{12} \\
+\ganttmilestone{Soutenance}{14}
+\end{ganttchart}
+\caption{Planning prévisionnel, en semaines à partir du 2 novembre 2026.}
+\end{figure}
+
+\subsection{Risques}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}P{4.4cm} l l L@{}}
+\caption{Principaux risques et parades}\\
+\toprule
+\hd{Risque} & \hd{Prob.} & \hd{Impact} & \hd{Parade} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Risque} & \hd{Prob.} & \hd{Impact} & \hd{Parade} \\
+\midrule
+\endhead
+L'agent ne dépasse pas la politique optimisée & Moyenne & Élevé & Niveau N1 en priorité, récompense normalisée ; un résultat négatif argumenté reste exploitable \\
+Problème trop facile, un stock abondant suffit & Moyenne & Élevé & Ajustement des coûts décrit au §\,\ref{sec:couts} \\
+Simulateur trop lent pour l'apprentissage & Moyenne & Élevé & Mesure des performances dès L2, pas journalier, simulations parallèles \\
+Données simulées trop faciles à prédire & Moyenne & Moyen & Bruit et variabilité entre machines, test TSTR \\
+Hypothèses de coûts et de durées contestées & Moyenne & Moyen & Unités relatives, valeurs usuelles, analyse de sensibilité \\
+Fuite d'information dans la prédiction & Faible & Élevé & Découpage temporel strict, variables calculées sur le passé seulement \\
+Retard sur l'application web & Moyenne & Moyen & Maquettes validées tôt, développement sur données fictives en parallèle \\
+Dérive du périmètre & Élevée & Moyen & Pistes complémentaires réservées aux perspectives \\
+\bottomrule
+\end{tabularx}}
+
+% ================================================================ 10
+\section{Points restant à préciser}
+
+Les éléments suivants seront arrêtés avec l'encadrement :
+\begin{itemize}
+\item la composition de l'équipe et la répartition des lots ;
+\item la date de soutenance et les éventuels jalons intermédiaires ;
+\item les articles de référence cités dans le sujet, qui permettront d'aligner nos notations et, le cas échéant, de remplacer les valeurs de départ du chapitre~4 ;
+\item les attentes concernant les défauts de fabrication : types de défauts, choix entre rebut et retouche, ordre de grandeur du taux de défaut.
+\end{itemize}
+
+% ================================================================ Références
+\begin{thebibliography}{99}
+\addcontentsline{toc}{section}{Références}
+\small
+\NoAutoSpacing
+\setlength{\itemsep}{0.15em}
+\bibitem{en13306} AFNOR, \emph{NF EN 13306, Maintenance. Terminologie de la maintenance}, 2018.
+\bibitem{barlow} R. E. Barlow et F. Proschan, \emph{Mathematical Theory of Reliability}, Wiley, 1965.
+\bibitem{iso281} ISO, \emph{ISO 281, Roulements. Charges dynamiques de base et durée nominale}, 2007.
+\bibitem{azure} Microsoft Azure Predictive Maintenance, jeu de données publié sur Kaggle, \url{https://www.kaggle.com/datasets/arnabbiswas1/microsoft-azure-predictive-maintenance}.
+\bibitem{tstr} C. Esteban, S. L. Hyland et G. Rätsch, «~Real-valued (medical) time series generation with recurrent conditional GANs~», arXiv:1706.02633, 2017.
+\bibitem{gensheimer} M. F. Gensheimer et B. Narasimhan, «~A scalable discrete-time survival model for neural networks~», \emph{PeerJ}, 7:e6257, 2019.
+\bibitem{lightgbm} G. Ke et al., «~LightGBM: A highly efficient gradient boosting decision tree~», \emph{NeurIPS}, 2017.
+\bibitem{lstm} S. Hochreiter et J. Schmidhuber, «~Long short-term memory~», \emph{Neural Computation}, 9(8), 1997.
+\bibitem{gru} K. Cho et al., «~Learning phrase representations using RNN encoder-decoder for statistical machine translation~», \emph{EMNLP}, 2014.
+\bibitem{tcn} S. Bai, J. Z. Kolter et V. Koltun, «~An empirical evaluation of generic convolutional and recurrent networks for sequence modeling~», arXiv:1803.01271, 2018.
+\bibitem{focal} T.-Y. Lin et al., «~Focal loss for dense object detection~», \emph{ICCV}, 2017.
+\bibitem{ppo} J. Schulman et al., «~Proximal policy optimization algorithms~», arXiv:1707.06347, 2017.
+\bibitem{masking} S. Huang et S. Ontañón, «~A closer look at invalid action masking in policy gradient algorithms~», \emph{FLAIRS}, 2022.
+\bibitem{dqn} V. Mnih et al., «~Human-level control through deep reinforcement learning~», \emph{Nature}, 518, 2015.
+\bibitem{bdq} A. Tavakoli, F. Pardo et P. Kormushev, «~Action branching architectures for deep reinforcement learning~», \emph{AAAI}, 2018.
+\bibitem{ensembles} B. Lakshminarayanan, A. Pritzel et C. Blundell, «~Simple and scalable predictive uncertainty estimation using deep ensembles~», \emph{NeurIPS}, 2017.
+\bibitem{saltelli} A. Saltelli et al., \emph{Global Sensitivity Analysis: The Primer}, Wiley, 2008.
+\bibitem{sb3} A. Raffin et al., «~Stable-Baselines3: Reliable reinforcement learning implementations~», \emph{Journal of Machine Learning Research}, 22(268), 2021.
+\end{thebibliography}
+
+\end{document}
