@@ -40,9 +40,38 @@ def jsonable(value):
     return value
 
 
+def machine_rows(result: SimulationResult) -> list[dict]:
+    """Une ligne par machine : état final, pannes, jours touchés et heures d'arrêt."""
+    states = result.daily["day_state"]
+    final = result.daily["states"][-1]
+    failures = np.zeros(states.shape[1], dtype=int)
+    preventive = np.zeros(states.shape[1], dtype=int)
+    for e in result.events:
+        if e["type"] == "panne":
+            failures[e["machine"]] += 1
+        elif e["type"] == "maintenance_preventive":
+            preventive[e["machine"]] += 1
+    down_days = (states != 0).sum(axis=0)
+    meta = result.meta
+    return [
+        {
+            "id": m,
+            "family": meta["families"][m],
+            "shifts": meta["shifts"][m],
+            "age_years": meta["age_years"][m],
+            "final_state": int(final[m]),
+            "failures": int(failures[m]),
+            "preventive": int(preventive[m]),
+            "down_days": int(down_days[m]),
+            "down_hours": meta["down_hours"][m],
+        }
+        for m in range(states.shape[1])
+    ]
+
+
 def run_payload(run_id: str, result: SimulationResult) -> dict:
     d = result.daily
-    states = d["states"]
+    states = d["day_state"]
     state_counts = np.stack([(states == s).sum(axis=1) for s in range(N_STATES)], axis=1)
     cumulative = {k: np.cumsum(d["costs"][k]) for k in COST_KEYS}
     daily_total = sum(d["costs"][k] for k in COST_KEYS)
@@ -51,6 +80,7 @@ def run_payload(run_id: str, result: SimulationResult) -> dict:
             "run_id": run_id,
             **result.to_summary(),
             "meta": result.meta,
+            "machines": machine_rows(result),
             "daily": {
                 "trs": d["trs"],
                 "availability": d["availability"],
@@ -77,7 +107,8 @@ def machine_payload(result: SimulationResult, m: int) -> dict:
             "family": result.meta["families"][m],
             "shifts": result.meta["shifts"][m],
             "age_years": result.meta["age_years"][m],
-            "states": d["states"][:, m],
+            "states": d["day_state"][:, m],
+            "down_hours": result.meta["down_hours"][m],
             "signal_mean": d["signal_mean"][:, m, :],
             "defect_rate": d["defect_rate"][:, m],
             "alarms": d["alarms"][:, m],

@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+/* Jetons décrits dans DESIGN.md */
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Archivo", "IBM Plex Sans", ui-sans-serif, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-paper: oklch(1 0 0);
+  --color-mist: oklch(0.975 0.008 300);
+  --color-line: oklch(0.91 0.012 300);
+  --color-line-strong: oklch(0.84 0.02 300);
+  --color-ink: oklch(0.24 0.035 300);
+  --color-ink-soft: oklch(0.46 0.03 300);
+
+  --color-plum-50: oklch(0.975 0.015 300);
+  --color-plum-100: oklch(0.93 0.035 300);
+  --color-plum-200: oklch(0.87 0.065 300);
+  --color-plum-400: oklch(0.68 0.13 300);
+  --color-plum-600: oklch(0.5 0.19 300);
+  --color-plum-700: oklch(0.42 0.17 300);
+  --color-plum-900: oklch(0.29 0.11 300);
+
+  --color-sun-100: oklch(0.965 0.06 95);
+  --color-sun-200: oklch(0.93 0.11 95);
+  --color-sun-400: oklch(0.86 0.165 92);
+  --color-sun-600: oklch(0.74 0.15 82);
+  --color-sun-800: oklch(0.43 0.08 75);
+
+  --color-danger: oklch(0.56 0.19 27);
+  --color-danger-soft: oklch(0.95 0.03 27);
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-paper text-ink font-sans;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display text-ink;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-plum-600);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0ms !important;
+      animation-duration: 0ms !important;
+    }
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}

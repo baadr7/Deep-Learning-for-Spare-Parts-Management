@@ -83,6 +83,7 @@ def build_result(sim: FleetSimulation, policy) -> SimulationResult:
         quality = np.where(produced > 0, 1.0 - defects / produced, np.nan)
     daily = {
         "states": np.array(h["states"]),
+        "day_state": np.array(h["day_state"]),
         "stock": np.array(h["stock"]),
         "on_order": np.array(h["on_order"]),
         "backorders": np.array(h["backorders"]),
@@ -110,7 +111,13 @@ def build_result(sim: FleetSimulation, policy) -> SimulationResult:
         "stockouts_by_part": sim.stockouts.tolist(),
         "demands_by_part": sim.demands.tolist(),
         "state_hours": sim.state_hours.tolist(),
+        "down_hours": sim.down_hours.round(1).tolist(),
     }
+    if hasattr(policy, "s") and hasattr(policy, "S"):
+        meta["policy_params"] = {
+            "s": np.asarray(policy.s).tolist(),
+            "S": np.asarray(policy.S).tolist(),
+        }
     return SimulationResult(
         scenario=sim.cfg.name,
         policy=getattr(policy, "name", type(policy).__name__),

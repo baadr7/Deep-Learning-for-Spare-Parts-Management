@@ -136,6 +136,7 @@ async def create_run(req: RunRequest) -> dict:
         raise HTTPException(400, str(exc)) from exc
     sim = FleetSimulation(cfg, seed=req.seed)
     result = await asyncio.to_thread(sim.run, policy, req.days)
+    result.meta["scenario_id"] = req.scenario
     return run_payload(_store(result), result)
 
 
@@ -262,6 +263,7 @@ async def live(ws: WebSocket) -> None:
             await asyncio.sleep(1.0 / control["speed"])
         if not control["stop"]:
             result = build_result(sim, policy)
+            result.meta["scenario_id"] = scenario
             run_id = _store(result)
             await ws.send_json(jsonable({"type": "done", "run_id": run_id, "kpis": result.kpis}))
     except (WebSocketDisconnect, RuntimeError):

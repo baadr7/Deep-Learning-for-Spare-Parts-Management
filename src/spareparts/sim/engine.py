@@ -219,6 +219,7 @@ class FleetSimulation:
         self.pipeline: list[dict] = []
         self.backorders: list[deque] = [deque() for _ in range(P)]
         self.events: list[dict] = []
+        self._events_mark = 0
         self.costs = dict.fromkeys(COST_KEYS, 0.0)
 
         self.day = 0
@@ -242,6 +243,8 @@ class FleetSimulation:
         self.corrective_downtime = 0.0
         self.tech_busy_hours = 0.0
         self.failures_by_component = np.zeros(K, dtype=int)
+        self.down_hours = np.zeros(M)
+        self._rows = np.arange(M)
 
         self._reset_day_accumulators()
         self.last_defect_rate = np.full(M, np.nan)
@@ -252,6 +255,7 @@ class FleetSimulation:
             k: []
             for k in (
                 "states",
+                "day_state",
                 "stock",
                 "on_order",
                 "backorders",
@@ -276,6 +280,7 @@ class FleetSimulation:
     def _reset_day_accumulators(self) -> None:
         M, K = self.M, self.K
         self._blk_run = np.zeros(M)
+        self._d_state_h = np.zeros((M, N_STATES))
         self._d_prod = np.zeros(M)
         self._d_expdef = np.zeros(M)
         self._d_run = np.zeros(M)
@@ -361,7 +366,10 @@ class FleetSimulation:
         self._d_open += n_open
         self._d_running += n_run
         self.state_hours += np.bincount(self.state[open_], minlength=N_STATES)
-        self.costs["arret"] += float(self.hourly_margin @ (open_ & ~running))
+        self._d_state_h[self._rows, self.state] += 1.0
+        down = open_ & ~running
+        self.down_hours += down
+        self.costs["arret"] += float(self.hourly_margin @ down)
         self._blk_run += running
         self._d_stock_value += float(self.stock @ self.unit_cost)
 
@@ -635,7 +643,9 @@ class FleetSimulation:
     def advance_day(self, risk: np.ndarray | None = None) -> DayRecord:
         """Simule une journée complète et renvoie son bilan."""
         costs_before = dict(self.costs)
-        n_events = len(self.events)
+        # Les décisions du matin sont journalisées avant l'appel : la journée commence au
+        # premier événement qui suit la journée précédente.
+        n_events = self._events_mark
         self.env.run(until=(self.day + 1) * 24.0)
         produced, defects = self._close_day()
 
@@ -655,8 +665,14 @@ class FleetSimulation:
             running_hours=self._d_running,
             events=self.events[n_events:],
         )
+        self._events_mark = len(self.events)
+        # État dominant de la journée : l'état hors service le plus long s'il a duré au moins
+        # une heure, sinon « opérationnelle ».
+        stopped = self._d_state_h[:, 1:]
+        day_state = np.where(stopped.sum(axis=1) >= 1.0, stopped.argmax(axis=1) + 1, 0)
         h = self.history
         h["states"].append(record.states)
+        h["day_state"].append(day_state.astype(np.int8))
         h["stock"].append(record.stock)
         h["on_order"].append(on_order)
         h["backorders"].append(backorders)
