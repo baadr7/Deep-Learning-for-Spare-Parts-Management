@@ -126,7 +126,7 @@ def train_bdq(env, cfg: BDQConfig, log=print) -> BranchingQNet:
         obs, masks = next_obs, next_masks
         if terminated or truncated:
             episodes += 1
-            log(f"BDQ épisode {episodes:3d}  pas {step + 1:7d}  coût {episode_cost:9.0f}  ε {eps:.2f}")
+            log(f"BDQ épisode {episodes:3d}  pas {step + 1:7d}  coût {episode_cost:9.0f}")
             obs, _ = env.reset()
             masks = env.action_masks()
             episode_cost = 0.0
