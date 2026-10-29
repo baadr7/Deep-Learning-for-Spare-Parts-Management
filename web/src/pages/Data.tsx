@@ -4,6 +4,63 @@ import { api, type Calibration } from "../lib/api";
 import { axisStyle, baseOption, Chart } from "../lib/chart";
 import { fmtInt, fmtNum } from "../lib/format";
 
+const MODEL_LABELS: Record<string, string> = { lightgbm: "LightGBM", gru: "GRU", tcn: "TCN", lstm: "LSTM" };
+const SOURCE_LABELS: Record<string, string> = {
+  simulation: "Données simulées (cinq années, test sur une année non vue)",
+  azure: "Données réelles Azure (test sur novembre et décembre 2015)",
+};
+
+function PredictionSection() {
+  const query = useQuery({ queryKey: ["prediction-metrics"], queryFn: api.predictionMetrics });
+  const sources = Object.entries(query.data ?? {});
+  if (!sources.length) return null;
+  return (
+    <Section
+      title="Modèles de prédiction"
+      description="Panne d'un composant dans les 24 heures puis dans les 7 jours. Le seuil de décision est choisi sur la période de validation. L'aire sous la courbe précision-rappel se compare à la proportion de pannes, rappelée entre parenthèses."
+    >
+      <div className="space-y-8">
+        {sources.map(([source, models]) => {
+          const any = Object.values(models)[0];
+          const base24 = any ? any.positifs / any.exemples : 0;
+          const base7 = any?.a_7_jours ? any.a_7_jours.positifs / any.a_7_jours.exemples : 0;
+          return (
+            <div key={source}>
+              <h3 className="mb-2 font-sans text-[14px] font-medium text-ink">{SOURCE_LABELS[source] ?? source}</h3>
+              <table className="w-full text-[14px]">
+                <thead>
+                  <tr className="border-b border-line-strong text-left text-[13px] text-ink-soft">
+                    <th className="py-2 font-medium">Modèle</th>
+                    <th className="py-2 text-right font-medium">Rappel 24 h</th>
+                    <th className="py-2 text-right font-medium">F1 24 h</th>
+                    <th className="py-2 text-right font-medium">PR-AUC 24 h ({fmtNum(100 * base24, 2)} %)</th>
+                    <th className="py-2 text-right font-medium">F1 7 j</th>
+                    <th className="py-2 text-right font-medium">PR-AUC 7 j ({fmtNum(100 * base7, 1)} %)</th>
+                    <th className="py-2 text-right font-medium">C-index</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(models).map(([name, m]) => (
+                    <tr key={name} className="border-b border-line">
+                      <td className="py-2">{MODEL_LABELS[name] ?? name}</td>
+                      <td className="py-2 text-right tabular">{fmtNum(m.rappel, 2)}</td>
+                      <td className="py-2 text-right tabular">{fmtNum(m.f1, 2)}</td>
+                      <td className="py-2 text-right tabular">{fmtNum(m.pr_auc, 3)}</td>
+                      <td className="py-2 text-right tabular">{m.a_7_jours ? fmtNum(m.a_7_jours.f1, 2) : "n.d."}</td>
+                      <td className="py-2 text-right tabular">{m.a_7_jours ? fmtNum(m.a_7_jours.pr_auc, 3) : "n.d."}</td>
+                      <td className="py-2 text-right tabular">{m.c_index_7j != null ? fmtNum(m.c_index_7j, 3) : "n.d."}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
 function CalibrationSection({ calibration }: { calibration: Calibration }) {
   const v = calibration.validation;
   const year = v?.annee_2015;
@@ -176,6 +233,7 @@ export function Data() {
               </table>
             </Section>
             {data.calibration && <CalibrationSection calibration={data.calibration} />}
+            <PredictionSection />
           </div>
           <aside className="space-y-8">
             <div className="rounded-md bg-mist px-5 py-4">

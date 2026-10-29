@@ -202,6 +202,21 @@ def data_summary() -> dict:
     return jsonable({**azure.summary(), "calibration": azure.calibration()})
 
 
+@app.get("/api/models/prediction")
+def prediction_metrics() -> dict:
+    """Métriques des modèles de prédiction, par source de données (§ 5.2)."""
+    import json
+
+    from spareparts.config import ROOT
+
+    out = {}
+    for source, name in (("simulation", "s1_nominal"), ("azure", "azure")):
+        path = ROOT / "reports" / "metrics" / f"prediction_{name}.json"
+        if path.exists():
+            out[source] = json.loads(path.read_text(encoding="utf-8"))
+    return jsonable(out)
+
+
 _surrogate: dict = {}
 
 

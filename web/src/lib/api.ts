@@ -189,6 +189,7 @@ export const api = {
     request<WhatIfResponse>("/api/whatif", { method: "POST", body: JSON.stringify(body) }),
   dataSummary: () => request<DataSummary>("/api/data/summary"),
   surrogate: () => request<SurrogateStatus>("/api/surrogate"),
+  predictionMetrics: () => request<Record<string, Record<string, PredictionMetrics>>>("/api/models/prediction"),
   surrogatePredict: (params: SurrogateParams) =>
     request<SurrogatePrediction>("/api/surrogate/predict", { method: "POST", body: JSON.stringify(params) }),
 };
@@ -210,6 +211,17 @@ export type DataSummary =
       maint_by_component: Record<string, number>;
       calibration: Calibration | null;
     };
+
+export type ClassMetrics = {
+  rappel: number;
+  precision: number;
+  f1: number;
+  pr_auc: number;
+  positifs: number;
+  exemples: number;
+};
+
+export type PredictionMetrics = ClassMetrics & { a_7_jours?: ClassMetrics; c_index_7j?: number };
 
 export type ComparedCount = { azure: number; simulees: number; ecart_type: number; ecart_relatif: number };
 
