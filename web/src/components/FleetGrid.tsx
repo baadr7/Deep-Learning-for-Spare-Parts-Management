@@ -26,7 +26,7 @@ export function FleetGrid({ states, families, familyLabels, linkable }: Props) {
                 <span className="ml-2 font-normal text-ink-soft">{ids.length} machines</span>
               </span>
               <span className="tabular text-ink-soft">
-                {stopped === 0 ? "toutes en service" : `${stopped} à l'arrêt`}
+                {stopped === 0 ? "aucun arrêt ce jour" : `${stopped} arrêtée${stopped > 1 ? "s" : ""} ce jour`}
               </span>
             </div>
             <ol className="grid grid-cols-[repeat(auto-fill,minmax(26px,1fr))] gap-1.5">

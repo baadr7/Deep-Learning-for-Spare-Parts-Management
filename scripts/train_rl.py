@@ -6,7 +6,8 @@ Exemples :
   uv run python scripts/train_rl.py --level reduced --algo dqn
 
 Le modèle MaskablePPO est enregistré dans models/rl/p4_<scénario>.zip (niveau n1) ou
-p5_<scénario>.zip (niveau n2) ; les courbes d'apprentissage vont dans runs/rl (TensorBoard).
+p5_<scénario>.zip (niveau n2), le DQN dans dqn_<scénario>.zip ; les courbes d'apprentissage
+vont dans runs/rl (TensorBoard).
 """
 
 from __future__ import annotations
@@ -68,8 +69,12 @@ def main() -> None:
             "MlpLstmPolicy", vec, n_steps=365, batch_size=730, gamma=0.995, **common
         )
     else:
+        # Au niveau N2, la loi masquée de sb3-contrib coûte 80 ms par décision ; la version
+        # vectorisée donne les mêmes probabilités cinquante fois plus vite.
+        from spareparts.rl.padded import PaddedMaskablePolicy
+
         model = MaskablePPO(
-            "MlpPolicy",
+            PaddedMaskablePolicy if args.level == "n2" else "MlpPolicy",
             vec,
             n_steps=365,
             batch_size=730,
@@ -78,6 +83,16 @@ def main() -> None:
             ent_coef=0.01,
             **common,
         )
+
+    if args.level == "n2" and args.algo == "maskable_ppo":
+        import torch
+
+        from spareparts.envs.codecs import inaction_prior
+
+        # Point de départ raisonnable : l'acteur commence par ne presque rien faire.
+        prior = inaction_prior(FleetEnv(scenario=args.scenario, level="n2").codec)
+        with torch.no_grad():
+            model.policy.action_net.bias.add_(torch.as_tensor(prior, dtype=torch.float32))
 
     run_name = f"{args.algo}_{args.level}_{args.scenario}_s{args.seed}"
     model.learn(total_timesteps=args.timesteps, tb_log_name=run_name, progress_bar=False)
@@ -88,6 +103,8 @@ def main() -> None:
     elif args.algo == "maskable_ppo" and args.level in ("n1", "n2"):
         code = "p4" if args.level == "n1" else "p5"
         path = MODEL_DIR / f"{code}_{args.scenario}.zip"
+    elif args.algo == "dqn":
+        path = MODEL_DIR / f"dqn_{args.scenario}.zip"
     else:
         path = MODEL_DIR / f"{run_name}.zip"
     model.save(path)

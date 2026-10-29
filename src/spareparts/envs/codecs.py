@@ -27,6 +27,13 @@ PM_LEVELS = np.array([0.6, 0.8, 1.0, 1.2, 1.5, np.inf])
 STOCK_LEVELS = np.array([0.5, 0.75, 1.0, 1.5, 2.0, 3.0])
 URGENT_MAX = 2
 OBS_CLIP = 5.0
+# Au niveau N2, un composant n'est remplaçable préventivement qu'à partir de la moitié de son
+# intervalle de maintenance : en deçà, le remplacement gaspille une pièce presque neuve.
+PM_MIN_RATIO = 0.5
+# Biais initial des logits de l'option « ne rien faire » (voir ``inaction_prior``).
+PRIOR_ORDER = 4.0
+PRIOR_URGENT = 4.0
+PRIOR_MACHINE = 5.0
 
 
 @dataclass
@@ -186,7 +193,8 @@ class Level2Codec:
         urgent = [np.ones(URGENT_MAX + 1, dtype=bool) for _ in range(ctx.n_parts)]
         operational = obs.machine_state == MachineState.OPERATIONAL
         in_stock = obs.stock[obs.part_of] > 0
-        can = operational[:, None] & in_stock & (obs.techs_free > 0)
+        worn = obs.age_unit / obs.pm_interval >= PM_MIN_RATIO
+        can = operational[:, None] & in_stock & worn & (obs.techs_free > 0)
         machines = np.concatenate([np.ones((ctx.n_machines, 1), dtype=bool), can], axis=1)
         return np.concatenate(parts + urgent + [machines.ravel()])
 
@@ -198,6 +206,29 @@ class Level2Codec:
         choice = a[2 * P : 2 * P + M]
         preventive = [(int(m), int(choice[m] - 1)) for m in np.flatnonzero(choice > 0)]
         return Decisions(orders=orders, urgent=urgent, preventive=preventive)
+
+
+def inaction_prior(codec: Level2Codec) -> np.ndarray:
+    """Biais à ajouter aux sorties d'un agent N2 non entraîné, une valeur par option.
+
+    Un agent initialisé au hasard choisit presque uniformément entre les options : il commande
+    chaque jour des quantités aléatoires et envoie en maintenance quatre machines sur cinq. Ces
+    années absurdes coûtent dix fois le coût normal et ralentissent fortement la simulation.
+    Le biais rend l'option 0 (rien à commander, rien à faire) nettement plus probable au départ ;
+    l'apprentissage peut ensuite s'en écarter librement.
+    """
+    ctx = codec.ctx
+    first = np.concatenate(
+        [
+            np.full(ctx.n_parts, PRIOR_ORDER),
+            np.full(ctx.n_parts, PRIOR_URGENT),
+            np.full(ctx.n_machines, PRIOR_MACHINE),
+        ]
+    )
+    prior = np.zeros(int(codec.nvec.sum()))
+    starts = np.concatenate([[0], np.cumsum(codec.nvec)[:-1]])
+    prior[starts] = first
+    return prior
 
 
 def fleet_features_template(ctx: Context) -> np.ndarray:

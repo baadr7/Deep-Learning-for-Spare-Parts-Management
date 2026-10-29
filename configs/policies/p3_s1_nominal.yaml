@@ -1,0 +1,5 @@
+# Seuils de P3 retenus sur une grille de 18 combinaisons.
+# Coût moyen sur les graines [101, 102, 103] : 52902.2 UR
+pm_threshold: 0.05
+age_factor: 1.5
+z: 0.0

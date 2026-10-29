@@ -170,3 +170,29 @@ def test_trained_agent_runs_inside_the_simulator(tmp_path):
     policy = LearnedPolicy(path, "n1", name="P4", label="test")
     result = FleetSimulation(load_scenario("s1_nominal"), seed=2).run(policy, days=10)
     assert result.days == 10 and result.kpis["cout_total"] > 0
+
+
+def test_padded_distribution_matches_sb3_contrib():
+    from sb3_contrib.common.maskable.distributions import MaskableMultiCategoricalDistribution
+
+    from spareparts.rl.padded import PaddedMaskableMultiCategorical
+
+    env = FleetEnv(level="n2", horizon_days=5)
+    env.reset(seed=1)
+    dims = [int(n) for n in env.action_space.nvec]
+    torch.manual_seed(0)
+    logits = torch.randn(6, sum(dims))
+    masks = np.tile(env.action_masks(), (6, 1))
+    reference = MaskableMultiCategoricalDistribution(dims).proba_distribution(logits)
+    reference.apply_masking(masks)
+    padded = PaddedMaskableMultiCategorical(dims).proba_distribution(logits)
+    padded.apply_masking(masks)
+
+    actions = reference.sample()
+    assert torch.allclose(padded.log_prob(actions), reference.log_prob(actions), atol=1e-4)
+    assert torch.allclose(padded.entropy(), reference.entropy(), atol=1e-4)
+    assert torch.equal(padded.mode(), reference.mode())
+    # Les tirages ne choisissent jamais une option masquée.
+    sampled = padded.sample().numpy()
+    starts = np.concatenate([[0], np.cumsum(dims)[:-1]])
+    assert masks[np.arange(6)[:, None], starts[None, :] + sampled].all()

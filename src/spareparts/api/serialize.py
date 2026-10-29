@@ -128,7 +128,7 @@ def live_frame(sim: FleetSimulation, record: DayRecord) -> dict:
         {
             "type": "day",
             "day": record.day,
-            "states": record.states,
+            "states": record.day_state if record.day_state is not None else record.states,
             "stock": record.stock,
             "on_order": record.on_order,
             "backorders": record.backorders,

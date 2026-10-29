@@ -15,7 +15,7 @@ from spareparts.policies.base import Policy
 from spareparts.sim.engine import Decisions, FleetSimulation, Observation
 
 MODEL_DIR = ROOT / "models" / "rl"
-LEVEL_OF = {"P4": "n1", "P5": "n2"}
+LEVEL_OF = {"DQN": "reduced", "P4": "n1", "P5": "n2"}
 
 
 def model_path(code: str, scenario: str) -> Path:
@@ -33,9 +33,13 @@ class LearnedPolicy(Policy):
 
     def _load(self):
         if self._model is None:
-            from sb3_contrib import MaskablePPO
+            # Le DQN du niveau réduit n'a pas d'actions à masquer.
+            if self.level == "reduced":
+                from stable_baselines3 import DQN as algo
+            else:
+                from sb3_contrib import MaskablePPO as algo
 
-            self._model = MaskablePPO.load(self.path, device="cpu")
+            self._model = algo.load(self.path, device="cpu")
         return self._model
 
     def reset(self, sim: FleetSimulation) -> None:
@@ -48,5 +52,8 @@ class LearnedPolicy(Policy):
     def decide(self, obs: Observation) -> Decisions:
         vector = self.codec.observe(obs)
         masks = self.codec.masks(obs)
-        action, _ = self._model.predict(vector, action_masks=masks, deterministic=True)
+        if self.level == "reduced":
+            action, _ = self._model.predict(vector, deterministic=True)
+        else:
+            action, _ = self._model.predict(vector, action_masks=masks, deterministic=True)
         return self.codec.decide(np.asarray(action), obs)

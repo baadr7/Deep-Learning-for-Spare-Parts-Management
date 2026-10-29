@@ -2,9 +2,10 @@
 
 Chaque politique est simulée sur les mêmes graines (nombres aléatoires communs). Le script
 calcule moyennes et intervalles de confiance à 95 %, teste les écarts à la référence par un
-test de Wilcoxon apparié, puis mesure la robustesse dans quatre situations dégradées.
+test de Wilcoxon apparié, puis mesure la robustesse dans trois situations dégradées.
 
 Exemple : uv run python scripts/evaluate_policies.py --replications 30 --robustness
+Ajout d'une politique entraînée après coup : ... --add P5
 Résultats : reports/evaluation_<scénario>.json et reports/evaluation_<scénario>.md
 """
 
@@ -30,6 +31,7 @@ KEYS = [
     "attente_piece_moyenne",
     "pannes",
 ]
+NOMINAL = "nominal"
 ROBUSTNESS = {
     "délai fournisseur doublé": {"lead_time_factor": 2.0},
     "taux de panne + 30 %": {"failure_rate_factor": 1.3},
@@ -92,34 +94,68 @@ def main() -> None:
     parser.add_argument("--replications", type=int, default=30)
     parser.add_argument("--days", type=int, default=365)
     parser.add_argument("--robustness", action="store_true")
+    parser.add_argument(
+        "--add",
+        nargs="+",
+        metavar="POLITIQUE",
+        help="évalue ces politiques et les ajoute au rapport existant sans refaire les autres",
+    )
     args = parser.parse_args()
-
-    policies = args.policies or available_policies(args.scenario)
-    seeds = list(range(9000, 9000 + args.replications))
-    report = {"scenario": args.scenario, "replications": args.replications, "policies": policies}
-    md = [f"# Évaluation des politiques, scénario {args.scenario}", ""]
-
-    with ProcessPoolExecutor() as pool:
-        nominal = evaluate(pool, args.scenario, policies, seeds, args.days, {})
-        pvalues = wilcoxon(nominal, args.reference, "cout_total")
-        report["nominal"] = {c: r["summary"] for c, r in nominal.items()}
-        report["wilcoxon_cout"] = pvalues
-        md += ["## Scénario nominal", "", markdown(nominal, pvalues, args.reference), ""]
-        print(markdown(nominal, pvalues, args.reference))
-
-        if args.robustness:
-            report["robustesse"] = {}
-            cases = dict(ROBUSTNESS)
-            for name, overrides in cases.items():
-                res = evaluate(pool, args.scenario, policies, seeds, args.days, overrides)
-                p = wilcoxon(res, args.reference, "cout_total")
-                report["robustesse"][name] = {c: r["summary"] for c, r in res.items()}
-                md += [f"## Robustesse : {name}", "", markdown(res, p, args.reference), ""]
-                print(f"\n{name}\n" + markdown(res, p, args.reference))
 
     out = ROOT / "reports"
     out.mkdir(exist_ok=True)
-    (out / f"evaluation_{args.scenario}.json").write_text(
+    json_path = out / f"evaluation_{args.scenario}.json"
+    runs: dict[str, dict[str, list]] = {}
+    if args.add:
+        # Mêmes graines et mêmes situations que l'évaluation existante, dont on garde les années.
+        previous = json.loads(json_path.read_text(encoding="utf-8"))
+        args.replications = previous["replications"]
+        args.days = previous.get("days", args.days)
+        args.robustness = "robustesse" in previous
+        runs = previous["runs"]
+        policies = args.add
+    else:
+        policies = args.policies or available_policies(args.scenario)
+    seeds = list(range(9000, 9000 + args.replications))
+    cases = {NOMINAL: {}} | (ROBUSTNESS if args.robustness else {})
+
+    with ProcessPoolExecutor() as pool:
+        for name, overrides in cases.items():
+            res = evaluate(pool, args.scenario, policies, seeds, args.days, overrides)
+            runs.setdefault(name, {}).update({c: r["runs"] for c, r in res.items()})
+            print(f"{name} : {', '.join(policies)} évaluées")
+
+    known = available_policies(args.scenario)
+    present = list(runs[NOMINAL])
+    order = [c for c in known if c in present] + [c for c in present if c not in known]
+    report = {
+        "scenario": args.scenario,
+        "replications": args.replications,
+        "days": args.days,
+        "policies": order,
+    }
+    md = [f"# Évaluation des politiques, scénario {args.scenario}", ""]
+    for name, by_policy in runs.items():
+        results = {
+            c: {"runs": by_policy[c], "summary": summarize(by_policy[c])}
+            for c in order
+            if c in by_policy
+        }
+        pvalues = wilcoxon(results, args.reference, "cout_total")
+        summaries = {c: r["summary"] for c, r in results.items()}
+        table = markdown(results, pvalues, args.reference)
+        if name == NOMINAL:
+            report["nominal"] = summaries
+            report["wilcoxon_cout"] = pvalues
+            md += ["## Scénario nominal", "", table, ""]
+        else:
+            report.setdefault("robustesse", {})[name] = summaries
+            report.setdefault("robustesse_wilcoxon", {})[name] = pvalues
+            md += [f"## Robustesse : {name}", "", table, ""]
+        print(f"\n{name}\n{table}")
+    report["runs"] = runs
+
+    json_path.write_text(
         json.dumps(report, indent=2, ensure_ascii=False, default=float), encoding="utf-8"
     )
     (out / f"evaluation_{args.scenario}.md").write_text("\n".join(md), encoding="utf-8")
