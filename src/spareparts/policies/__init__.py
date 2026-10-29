@@ -70,7 +70,7 @@ def make_policy(code: str, scenario: str = "s1_nominal") -> Policy:
             )
         from spareparts.policies.predictive import PredictivePolicy
 
-        return PredictivePolicy(*found)
+        return PredictivePolicy(*found, **(tuned_parameters("p3", scenario) or {}))
     if code in LEVEL_OF:
         path = model_path(code, scenario)
         if not path.exists():

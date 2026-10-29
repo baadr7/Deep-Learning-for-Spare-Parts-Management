@@ -16,15 +16,23 @@ METRICS_DIR = ROOT / "reports" / "metrics"
 
 
 def best_architecture(scenario: str) -> str | None:
-    """Architecture de meilleur F1 parmi les réseaux entraînés pour ce scénario."""
+    """Réseau qui classe le mieux les pannes à 7 jours (aire sous la courbe précision-rappel).
+
+    La politique P3 décide sur un risque à quelques jours : le classement à 7 jours compte plus
+    que la détection à 24 heures.
+    """
     trained = [p.stem.split("_")[0] for p in MODEL_DIR.glob(f"*_{scenario}.pt")]
     if not trained:
         return None
     metrics_file = METRICS_DIR / f"prediction_{scenario}.json"
     if metrics_file.exists():
         metrics = json.loads(metrics_file.read_text(encoding="utf-8"))
-        ranked = sorted(trained, key=lambda a: -metrics.get(a, {}).get("f1", -1.0))
-        return ranked[0]
+
+        def score(arch: str) -> float:
+            m = metrics.get(arch, {})
+            return m.get("a_7_jours", {}).get("pr_auc", m.get("pr_auc", -1.0))
+
+        return max(trained, key=score)
     return trained[0]
 
 
