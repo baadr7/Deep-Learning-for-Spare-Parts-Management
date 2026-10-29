@@ -1,0 +1,30 @@
+# Scénario de validation S0 : 100 machines identiques (même cadence, mêmes postes).
+# Chaque composant garde son régime : deux suivis à l'usage, deux au calendrier.
+name: S0 homogène
+description: Flotte de 100 machines identiques, utilisée pour valider le simulateur.
+horizon_days: 365
+seed: 7
+technicians: 2
+
+fleet:
+  n_machines: 100
+  family_share: {M: 1.0}
+  age_years: [0, 20]
+
+parts:
+  - {code: P1, name: "Roulement", nature: "Pièce d'usure catalogue", unit_cost: 1, lead_days: 5, lead_cv: 0.3, urgent_lead_days: 1, s: 6, S: 16, initial_stock: 12}
+  - {code: P2, name: "Kit de joints", nature: "Pièce d'usure catalogue", unit_cost: 1, lead_days: 5, lead_cv: 0.3, urgent_lead_days: 1, s: 6, S: 16, initial_stock: 12}
+  - {code: P3, name: "Pièce usinée", nature: "Pièce spécifique", unit_cost: 50, lead_days: 31, lead_cv: 0.25, urgent_lead_days: 7, s: 2, S: 5, initial_stock: 4}
+  - {code: P4, name: "Moteur", nature: "Sous-ensemble", unit_cost: 200, lead_days: 42, lead_cv: 0.25, urgent_lead_days: 10, s: 1, S: 3, initial_stock: 2}
+
+families:
+  M:
+    label: "Machine standard"
+    shifts: [2]
+    cadence: 40
+    margin_per_part: 0.025
+    components:
+      - {name: "Roulement", part: 0, regime: usage, weibull_beta: 2.5, weibull_eta: 3000, pm_interval: 1500, repair: {mean: 4, cv: 0.4}, signal: vibration, drift: 3.0, defect_type: "État de surface", defect_weight: 0.04}
+      - {name: "Joints", part: 1, regime: calendar, weibull_beta: 2.2, weibull_eta: 5000, pm_interval: 2300, repair: {mean: 5, cv: 0.4}, signal: pressure, drift: -2.5, defect_type: "Aspect", defect_weight: 0.02}
+      - {name: "Pièce usinée", part: 2, regime: usage, weibull_beta: 3.0, weibull_eta: 36000, pm_interval: 18000, repair: {mean: 8, cv: 0.35}, signal: rotate, drift: -2.5, defect_type: "Dimensionnel", defect_weight: 0.05}
+      - {name: "Moteur", part: 3, regime: calendar, weibull_beta: 1.8, weibull_eta: 70000, pm_interval: 35000, repair: {mean: 12, cv: 0.3}, signal: volt, drift: 2.0, defect_type: "Assemblage", defect_weight: 0.03}

@@ -1,0 +1,46 @@
+# Scénario principal S1 : flotte hétérogène à deux familles (cahier des charges, § 3.2 et § 4.3).
+# Durées en heures. weibull_eta et pm_interval sont exprimés en heures de marche pour le
+# régime « usage » et en heures calendaires pour le régime « calendar ».
+# Les intervalles de maintenance valent environ la moitié de l'échelle de Weibull, si bien
+# qu'environ 15 à 25 % des composants tombent en panne avant leur maintenance préventive.
+name: S1 nominal
+description: Flotte hétérogène de 100 machines, familles usage intensif et vieillissement calendaire.
+horizon_days: 365
+seed: 42
+technicians: 2
+
+fleet:
+  n_machines: 100
+  family_share: {U: 0.5, C: 0.5}
+  age_years: [0, 20]
+
+parts:
+  - {code: P1, name: "Roulement", nature: "Pièce d'usure catalogue", unit_cost: 1, lead_days: 5, lead_cv: 0.3, urgent_lead_days: 1, s: 6, S: 16, initial_stock: 12}
+  - {code: P2, name: "Kit de joints", nature: "Pièce d'usure catalogue", unit_cost: 1, lead_days: 5, lead_cv: 0.3, urgent_lead_days: 1, s: 6, S: 16, initial_stock: 12}
+  - {code: P3, name: "Pièce usinée", nature: "Pièce spécifique", unit_cost: 50, lead_days: 31, lead_cv: 0.25, urgent_lead_days: 7, s: 2, S: 5, initial_stock: 4}
+  - {code: P4, name: "Moteur", nature: "Sous-ensemble", unit_cost: 200, lead_days: 42, lead_cv: 0.25, urgent_lead_days: 10, s: 1, S: 3, initial_stock: 2}
+
+families:
+  U:
+    label: "Usage intensif"
+    shifts: [2, 3]
+    cadence: 60
+    margin_per_part: 0.0167
+    components:
+      - {name: "Roulement", part: 0, regime: usage, weibull_beta: 2.5, weibull_eta: 3000, pm_interval: 1500, repair: {mean: 4, cv: 0.4}, signal: vibration, drift: 3.0, defect_type: "État de surface", defect_weight: 0.04}
+      - {name: "Joints", part: 1, regime: usage, weibull_beta: 2.0, weibull_eta: 4500, pm_interval: 2000, repair: {mean: 5, cv: 0.4}, signal: pressure, drift: -2.5, defect_type: "Aspect", defect_weight: 0.02}
+      - {name: "Pièce usinée", part: 2, regime: usage, weibull_beta: 3.0, weibull_eta: 36000, pm_interval: 18000, repair: {mean: 8, cv: 0.35}, signal: rotate, drift: -2.5, defect_type: "Dimensionnel", defect_weight: 0.05}
+      - {name: "Moteur", part: 3, regime: calendar, weibull_beta: 1.8, weibull_eta: 70000, pm_interval: 35000, repair: {mean: 12, cv: 0.3}, signal: volt, drift: 2.0, defect_type: "Assemblage", defect_weight: 0.03}
+  C:
+    label: "Vieillissement calendaire"
+    shifts: [1, 2]
+    cadence: 20
+    margin_per_part: 0.05
+    overhaul_years: [5, 10]
+    overhaul_days: {mean: 3.5, cv: 0.25}
+    overhaul_cost: 40
+    components:
+      - {name: "Roulement", part: 0, regime: usage, weibull_beta: 2.5, weibull_eta: 3000, pm_interval: 1500, repair: {mean: 4, cv: 0.4}, signal: vibration, drift: 3.0, defect_type: "État de surface", defect_weight: 0.04}
+      - {name: "Joints", part: 1, regime: calendar, weibull_beta: 2.2, weibull_eta: 5000, pm_interval: 2300, repair: {mean: 5, cv: 0.4}, signal: pressure, drift: -2.5, defect_type: "Aspect", defect_weight: 0.02}
+      - {name: "Pièce usinée", part: 2, regime: calendar, weibull_beta: 2.8, weibull_eta: 40000, pm_interval: 20000, repair: {mean: 8, cv: 0.35}, signal: rotate, drift: -2.5, defect_type: "Dimensionnel", defect_weight: 0.05}
+      - {name: "Moteur", part: 3, regime: calendar, weibull_beta: 1.8, weibull_eta: 70000, pm_interval: 35000, repair: {mean: 12, cv: 0.3}, signal: volt, drift: 2.0, defect_type: "Assemblage", defect_weight: 0.03}
