@@ -32,7 +32,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scenario", default="s1_nominal")
     parser.add_argument("--level", choices=["reduced", "n1", "n2"], default="n1")
-    parser.add_argument("--algo", choices=["maskable_ppo", "ppo", "dqn"], default="maskable_ppo")
+    parser.add_argument(
+        "--algo", choices=["maskable_ppo", "ppo", "recurrent_ppo", "dqn"], default="maskable_ppo"
+    )
     parser.add_argument("--timesteps", type=int, default=300_000)
     parser.add_argument("--envs", type=int, default=8)
     parser.add_argument("--horizon", type=int, default=365)
@@ -58,6 +60,13 @@ def main() -> None:
         model = DQN("MlpPolicy", vec, learning_rate=3e-4, buffer_size=200_000, **common)
     elif args.algo == "ppo":
         model = PPO("MlpPolicy", vec, n_steps=365, batch_size=730, gamma=0.995, **common)
+    elif args.algo == "recurrent_ppo":
+        # Variante à mémoire (§ 5.3) : utile si l'observabilité partielle pénalise l'agent.
+        from sb3_contrib import RecurrentPPO
+
+        model = RecurrentPPO(
+            "MlpLstmPolicy", vec, n_steps=365, batch_size=730, gamma=0.995, **common
+        )
     else:
         model = MaskablePPO(
             "MlpPolicy",
