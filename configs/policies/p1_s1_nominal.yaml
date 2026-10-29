@@ -1,0 +1,17 @@
+# Paramètres de P1 obtenus par recherche aléatoire (40 essais).
+# Coût moyen sur les graines [101, 102, 103] : 53683.5 UR
+s:
+- 15
+- 10
+- 6
+- 4
+S:
+- 22
+- 13
+- 7
+- 8
+pm_factor:
+- 0.717
+- 1.389
+- 1.038
+- 1.588
