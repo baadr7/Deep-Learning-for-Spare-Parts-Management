@@ -19,7 +19,7 @@ from spareparts.api.serialize import jsonable, live_frame, machine_payload, run_
 from spareparts.config import list_scenarios, load_scenario
 from spareparts.data import azure
 from spareparts.evaluation import summarize
-from spareparts.policies import POLICY_LABELS, make_policy
+from spareparts.policies import POLICY_LABELS, available_policies, make_policy
 from spareparts.sim import FleetSimulation, SimulationResult
 from spareparts.sim.results import build_result
 
@@ -122,8 +122,8 @@ def scenarios() -> list[dict]:
 
 
 @app.get("/api/policies")
-def policies() -> list[dict]:
-    return [{"code": code, "label": label} for code, label in POLICY_LABELS.items()]
+def policies(scenario: str = "s1_nominal") -> list[dict]:
+    return [{"code": code, "label": POLICY_LABELS[code]} for code in available_policies(scenario)]
 
 
 @app.post("/api/runs")
@@ -200,6 +200,63 @@ async def whatif(req: WhatIfRequest) -> dict:
 @app.get("/api/data/summary")
 def data_summary() -> dict:
     return jsonable(azure.summary())
+
+
+_surrogate: dict = {}
+
+
+def _load_surrogate():
+    """Charge le modèle de substitution une seule fois ; None s'il n'est pas entraîné."""
+    from spareparts.surrogate import MODEL_PATH
+
+    if "model" not in _surrogate:
+        if not MODEL_PATH.exists():
+            return None
+        from spareparts.surrogate.model import DeepEnsemble
+
+        _surrogate["model"], _surrogate["metrics"] = DeepEnsemble.load(MODEL_PATH)
+    return _surrogate["model"]
+
+
+class SurrogateRequest(BaseModel):
+    technicians: float = Field(ge=1, le=4)
+    lead_time_factor: float = Field(ge=0.5, le=2.5)
+    failure_rate_factor: float = Field(ge=0.6, le=1.8)
+    pm_factor: float = Field(ge=0.5, le=1.6)
+    stock_factor: float = Field(ge=0.5, le=3.0)
+
+
+@app.get("/api/surrogate")
+def surrogate_status() -> dict:
+    try:
+        model = _load_surrogate()
+    except ImportError:
+        model = None
+    if model is None:
+        return {"available": False}
+    from spareparts.surrogate.doe import OUTPUTS, PARAMS
+
+    return jsonable(
+        {
+            "available": True,
+            "params": {
+                k: {"low": lo, "high": hi, "integer": i} for k, (lo, hi, i) in PARAMS.items()
+            },
+            "outputs": OUTPUTS,
+            "metrics": _surrogate.get("metrics", {}),
+        }
+    )
+
+
+@app.post("/api/surrogate/predict")
+def surrogate_predict(req: SurrogateRequest) -> dict:
+    import pandas as pd
+
+    model = _load_surrogate()
+    if model is None:
+        raise HTTPException(404, "modèle de substitution non entraîné : scripts/train_surrogate.py")
+    mean, std = model.predict(pd.DataFrame([req.model_dump()]))
+    return jsonable({k: {"mean": mean[k].iloc[0], "std": std[k].iloc[0]} for k in mean.columns})
 
 
 @app.websocket("/api/ws/live")

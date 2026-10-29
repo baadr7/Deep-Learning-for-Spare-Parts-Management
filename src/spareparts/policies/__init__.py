@@ -9,9 +9,19 @@ import yaml
 from spareparts.config import ROOT
 from spareparts.policies.base import Policy
 from spareparts.policies.classic import ConditionalPolicy, FixedThresholdPolicy
+from spareparts.policies.learned import LEVEL_OF, LearnedPolicy, model_path
 from spareparts.policies.oracle import OraclePolicy
 
 TUNED_DIR = ROOT / "configs" / "policies"
+
+POLICY_LABELS = {
+    "P0": "Seuils fixes réglés à la main",
+    "P1": "Seuils fixes optimisés",
+    "P2": "Maintenance conditionnelle",
+    "P4": "Agent DRL, niveau N1",
+    "P5": "Agent DRL, niveau N2",
+    "Oracle": "Connaissance des pannes futures",
+}
 
 
 def tuned_parameters(policy: str, scenario: str) -> dict | None:
@@ -23,8 +33,15 @@ def tuned_parameters(policy: str, scenario: str) -> dict | None:
         return yaml.safe_load(fh)
 
 
+def available_policies(scenario: str = "s1_nominal") -> list[str]:
+    """Politiques utilisables : les agents n'apparaissent qu'une fois entraînés."""
+    codes = ["P0", "P1", "P2"]
+    codes += [c for c in LEVEL_OF if model_path(c, scenario).exists()]
+    return codes + ["Oracle"]
+
+
 def make_policy(code: str, scenario: str = "s1_nominal") -> Policy:
-    code = code.upper() if code.lower() != "oracle" else "Oracle"
+    code = "Oracle" if code.lower() == "oracle" else code.upper()
     if code == "P0":
         return FixedThresholdPolicy(name="P0")
     if code == "P1":
@@ -35,17 +52,17 @@ def make_policy(code: str, scenario: str = "s1_nominal") -> Policy:
     if code == "P2":
         params = tuned_parameters("p2", scenario) or {}
         return ConditionalPolicy(**params)
+    if code in LEVEL_OF:
+        path = model_path(code, scenario)
+        if not path.exists():
+            raise ValueError(
+                f"agent {code} non entraîné pour {scenario} : lancer scripts/train_rl.py"
+            )
+        return LearnedPolicy(path, LEVEL_OF[code], name=code, label=POLICY_LABELS[code])
     if code == "Oracle":
         return OraclePolicy()
     raise ValueError(f"politique inconnue : {code}")
 
-
-POLICY_LABELS = {
-    "P0": "Seuils fixes réglés à la main",
-    "P1": "Seuils fixes optimisés",
-    "P2": "Maintenance conditionnelle",
-    "Oracle": "Connaissance des pannes futures",
-}
 
 __all__ = [
     "POLICY_LABELS",
@@ -53,5 +70,6 @@ __all__ = [
     "FixedThresholdPolicy",
     "OraclePolicy",
     "Policy",
+    "available_policies",
     "make_policy",
 ]
