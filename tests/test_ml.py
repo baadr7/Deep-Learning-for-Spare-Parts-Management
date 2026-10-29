@@ -130,6 +130,17 @@ def test_predictive_policy_runs_with_a_trained_network(tmp_path):
     assert result.days == 5
 
 
+def test_branching_dqn_learns_and_plays_valid_actions():
+    from spareparts.rl.bdq import BDQConfig, BDQPolicy, train_bdq
+
+    env = FleetEnv(level="n2", horizon_days=6)
+    cfg = BDQConfig(total_steps=24, learning_starts=8, batch_size=8, target_every=5)
+    net = train_bdq(env, cfg, log=lambda *_: None)
+    assert len(net.sizes) == len(env.action_space.nvec)
+    result = FleetSimulation(load_scenario("s1_nominal"), seed=5).run(BDQPolicy(net), days=4)
+    assert result.days == 4
+
+
 def test_trained_agent_runs_inside_the_simulator(tmp_path):
     from sb3_contrib import MaskablePPO
 
