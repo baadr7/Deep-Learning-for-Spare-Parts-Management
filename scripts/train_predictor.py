@@ -30,23 +30,43 @@ def main() -> None:
     parser.add_argument("--days", type=int, default=365)
     parser.add_argument("--rebuild", action="store_true")
     parser.add_argument(
+        "--source",
+        choices=["simulation", "azure"],
+        default="simulation",
+        help="azure : données réelles, découpage temporel (janvier-août, septembre-octobre, "
+        "novembre-décembre)",
+    )
+    parser.add_argument(
         "--evaluate-only",
         action="store_true",
         help="évalue les réseaux déjà entraînés sans les réentraîner (LightGBM est réentraîné)",
     )
     args = parser.parse_args()
 
-    cache = ROOT / "data" / "processed" / f"predict_{args.scenario}_{args.days}j.npz"
+    if args.source == "azure":
+        args.scenario = "azure"
+        cache = ROOT / "data" / "processed" / "predict_azure.npz"
+    else:
+        cache = ROOT / "data" / "processed" / f"predict_{args.scenario}_{args.days}j.npz"
     if cache.exists() and not args.rebuild:
         data = PredictionData.load(cache)
     else:
         start = time.perf_counter()
-        data = simulate_dataset(args.scenario, seeds=(1, 2, 3, 4, 5), days=args.days)
+        if args.source == "azure":
+            from spareparts.predict.azure_dataset import build_azure_dataset
+
+            data = build_azure_dataset()
+        else:
+            data = simulate_dataset(args.scenario, seeds=(1, 2, 3, 4, 5), days=args.days)
         cache.parent.mkdir(parents=True, exist_ok=True)
         data.save(cache)
-        print(f"{len(data)} exemples simulés en {time.perf_counter() - start:.0f} s")
+        print(f"{len(data)} exemples construits en {time.perf_counter() - start:.0f} s")
 
-    train, val, test = split_by_group(data, val_groups=[4], test_groups=[5])
+    if args.source == "azure":
+        # Découpage temporel : la variable « group » contient le mois.
+        train, val, test = split_by_group(data, val_groups=[9, 10], test_groups=[11, 12])
+    else:
+        train, val, test = split_by_group(data, val_groups=[4], test_groups=[5])
     print(f"apprentissage {len(train)}, validation {len(val)}, test {len(test)}")
 
     results = {}

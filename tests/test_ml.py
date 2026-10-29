@@ -104,6 +104,22 @@ def test_azure_lifetimes_mark_failures_and_censoring():
     assert lt["duration"].iloc[0] == 31 * 24
 
 
+def test_azure_dataset_does_not_leak_the_target():
+    from spareparts.data import azure
+
+    if not azure.is_complete():
+        pytest.skip("jeu Azure absent de data/raw")
+    from spareparts.predict.azure_dataset import build_azure_dataset
+
+    data = build_azure_dataset()
+    n_models = 4
+    since = data.static[:, n_models + 1 :]  # temps depuis le dernier remplacement, par composant
+    failing_now = data.event_bin == 0
+    # Une panne datée de l'instant de prédiction ne doit pas apparaître comme un remplacement.
+    assert (since[failing_now] > 0).all()
+    assert set(np.unique(data.group)) == set(range(1, 13))
+
+
 def test_telemetry_window_matches_training_layout():
     sim = FleetSimulation(load_scenario("s1_nominal"), seed=3, log_events=False)
     sim.enable_window(48)
