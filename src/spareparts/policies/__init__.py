@@ -18,6 +18,7 @@ POLICY_LABELS = {
     "P0": "Seuils fixes réglés à la main",
     "P1": "Seuils fixes optimisés",
     "P2": "Maintenance conditionnelle",
+    "P3": "Prédictive sans apprentissage par renforcement",
     "P4": "Agent DRL, niveau N1",
     "P5": "Agent DRL, niveau N2",
     "Oracle": "Connaissance des pannes futures",
@@ -36,8 +37,17 @@ def tuned_parameters(policy: str, scenario: str) -> dict | None:
 def available_policies(scenario: str = "s1_nominal") -> list[str]:
     """Politiques utilisables : les agents n'apparaissent qu'une fois entraînés."""
     codes = ["P0", "P1", "P2"]
+    if _predictor_path(scenario):
+        codes.append("P3")
     codes += [c for c in LEVEL_OF if model_path(c, scenario).exists()]
     return codes + ["Oracle"]
+
+
+def _predictor_path(scenario: str):
+    from spareparts.predict.inference import MODEL_DIR, best_architecture
+
+    arch = best_architecture(scenario)
+    return (MODEL_DIR / f"{arch}_{scenario}.pt", arch) if arch else None
 
 
 def make_policy(code: str, scenario: str = "s1_nominal") -> Policy:
@@ -52,6 +62,15 @@ def make_policy(code: str, scenario: str = "s1_nominal") -> Policy:
     if code == "P2":
         params = tuned_parameters("p2", scenario) or {}
         return ConditionalPolicy(**params)
+    if code == "P3":
+        found = _predictor_path(scenario)
+        if not found:
+            raise ValueError(
+                f"aucun modèle de prédiction pour {scenario} : lancer scripts/train_predictor.py"
+            )
+        from spareparts.policies.predictive import PredictivePolicy
+
+        return PredictivePolicy(*found)
     if code in LEVEL_OF:
         path = model_path(code, scenario)
         if not path.exists():

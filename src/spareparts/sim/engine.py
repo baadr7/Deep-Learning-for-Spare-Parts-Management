@@ -126,6 +126,7 @@ class FleetSimulation:
         self.rng = np.random.default_rng(self.seed)
         self.log_events = log_events
         self.log_telemetry = log_telemetry
+        self._win: np.ndarray | None = None
         self._setup_fleet()
         self._setup_state()
         self.env = simpy.Environment()
@@ -373,16 +374,35 @@ class FleetSimulation:
         self._blk_run += running
         self._d_stock_value += float(self.stock @ self.unit_cost)
 
-        if self.log_telemetry:
+        if self.log_telemetry or self._win is not None:
             D = np.minimum(self.uage / self.life, 1.0)
             tel = self.cfg.telemetry
             drift = np.einsum("mk,mks->ms", D**3, self._sig_drift)
             noise = self.rng.normal(0.0, tel.noise, (self.M, 4))
             signal = (self.sig_base + (drift + noise) * self.sig_sd).astype(np.float32)
             signal[~running] = np.nan
-            self.telemetry_log.append(signal)
+            if self.log_telemetry:
+                self.telemetry_log.append(signal)
+            if self._win is not None:
+                # Même normalisation que les jeux d'apprentissage (predict.dataset).
+                z = np.nan_to_num((signal - self.sig_mean) / self.sig_sd, nan=0.0)
+                self._win[self._win_pos, :, :4] = z
+                self._win[self._win_pos, :, 4] = running
+                self._win_pos = (self._win_pos + 1) % self._win.shape[0]
         if t % FLUSH_EVERY_HOURS == FLUSH_EVERY_HOURS - 1:
             self._flush()
+
+    def enable_window(self, hours: int) -> None:
+        """Conserve les ``hours`` dernières heures de télémétrie (politiques prédictives)."""
+        self._win = np.zeros((hours, self.M, 5), dtype=np.float32)
+        self._win_pos = 0
+
+    def telemetry_window(self) -> np.ndarray | None:
+        """Fenêtre glissante ordonnée du plus ancien au plus récent : [M, heures, 5]."""
+        if self._win is None:
+            return None
+        ordered = np.concatenate([self._win[self._win_pos :], self._win[: self._win_pos]])
+        return np.ascontiguousarray(ordered.transpose(1, 0, 2))
 
     def _flush(self) -> None:
         """Convertit les heures de marche du bloc en espérances de production et de défauts."""

@@ -78,6 +78,58 @@ def test_surrogate_fits_and_predicts():
     assert list(mean.columns) == OUTPUTS and (std.to_numpy() >= 0).all()
 
 
+def test_weibull_fit_recovers_parameters_under_censoring():
+    pytest.importorskip("lifelines")
+    from spareparts.reliability.weibull import fit_weibull
+
+    rng = np.random.default_rng(0)
+    life = 3000 * rng.weibull(2.5, 3000)
+    planned = rng.uniform(500, 4000, 3000)  # remplacements préventifs : censure à droite
+    observed = np.minimum(life, planned)
+    fit = fit_weibull(observed, life <= planned)
+    assert abs(fit["beta"] - 2.5) < 0.2
+    assert abs(fit["eta"] - 3000) < 150
+
+
+def test_azure_lifetimes_mark_failures_and_censoring():
+    import pandas as pd
+
+    from spareparts.reliability.weibull import lifetimes_from_azure
+
+    t = pd.to_datetime(["2015-01-01", "2015-02-01", "2015-03-01"])
+    maint = pd.DataFrame({"datetime": t, "machineID": 1, "comp": "comp1"})
+    failures = pd.DataFrame({"datetime": [t[1]], "machineID": [1], "failure": ["comp1"]})
+    lt = lifetimes_from_azure(maint, failures)
+    assert lt["event"].tolist() == [True, False]
+    assert lt["duration"].iloc[0] == 31 * 24
+
+
+def test_telemetry_window_matches_training_layout():
+    sim = FleetSimulation(load_scenario("s1_nominal"), seed=3, log_events=False)
+    sim.enable_window(48)
+    for _ in range(3):
+        sim.advance_day()
+    window = sim.telemetry_window()
+    assert window.shape == (sim.M, 48, 5)
+    assert set(np.unique(window[..., 4])) <= {0.0, 1.0}
+
+
+def test_predictive_policy_runs_with_a_trained_network(tmp_path):
+    from spareparts.policies.predictive import PredictivePolicy
+    from spareparts.predict.training import split_by_group, train_network
+
+    data = simulate_dataset(seeds=(1, 2, 3), days=6)
+    train, val, test = split_by_group(data, val_groups=[2], test_groups=[3])
+    model, metrics = train_network("gru", train, val, test, epochs=1, log=lambda *_: None)
+    assert 0.0 <= metrics["rappel"] <= 1.0
+    path = tmp_path / "gru.pt"
+    torch.save(model.state_dict(), path)
+    result = FleetSimulation(load_scenario("s1_nominal"), seed=4).run(
+        PredictivePolicy(path, "gru"), days=5
+    )
+    assert result.days == 5
+
+
 def test_trained_agent_runs_inside_the_simulator(tmp_path):
     from sb3_contrib import MaskablePPO
 

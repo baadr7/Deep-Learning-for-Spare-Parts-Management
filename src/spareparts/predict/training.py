@@ -124,7 +124,7 @@ def train_network(
             opt.zero_grad()
             loss.backward()
             opt.step()
-            total += float(loss) * len(idx)
+            total += loss.item() * len(idx)
         val_loss = float(survival_loss(predict(va), va[2], va[3], event_weight))
         train_loss = total / len(order)
         log(f"{arch} époque {epoch + 1:2d}  perte {train_loss:.4f}  validation {val_loss:.4f}")
