@@ -1,0 +1,21 @@
+# Lois corrigées par simulation sur le premier semestre 2015 (heures).
+comp1:
+  beta: 1.8024228587939544
+  eta: 3056.6863767096665
+  n: 802
+  pannes: 183
+comp2:
+  beta: 1.5034600978677823
+  eta: 2869.8304013777865
+  n: 861
+  pannes: 256
+comp3:
+  beta: 1.903915760137688
+  eta: 4135.149129657006
+  n: 806
+  pannes: 128
+comp4:
+  beta: 1.945832369927424
+  eta: 3215.6690565383933
+  n: 810
+  pannes: 176

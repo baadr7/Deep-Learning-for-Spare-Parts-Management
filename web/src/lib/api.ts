@@ -208,7 +208,21 @@ export type DataSummary =
       age_histogram: { edges: number[]; counts: number[] };
       errors_by_type: Record<string, number>;
       maint_by_component: Record<string, number>;
+      calibration: Calibration | null;
     };
+
+export type ComparedCount = { azure: number; simulees: number; ecart_type: number; ecart_relatif: number };
+
+export type Calibration = {
+  lois: Record<string, { beta: number; eta: number; n: number; pannes: number }>;
+  validation?: {
+    lois_corrigees: Record<string, { beta: number; eta: number }>;
+    validation_s2: Record<string, ComparedCount>;
+    annee_2015?: Record<string, ComparedCount>;
+    critere_atteint: boolean;
+    critere_atteint_s2?: boolean;
+  };
+};
 
 export function liveSocketUrl(): string {
   const proto = window.location.protocol === "https:" ? "wss" : "ws";

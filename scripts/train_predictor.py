@@ -14,7 +14,12 @@ import time
 
 from spareparts.config import ROOT
 from spareparts.predict.dataset import PredictionData, simulate_dataset
-from spareparts.predict.training import split_by_group, train_lightgbm, train_network
+from spareparts.predict.training import (
+    evaluate_network,
+    split_by_group,
+    train_lightgbm,
+    train_network,
+)
 
 
 def main() -> None:
@@ -24,6 +29,11 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=15)
     parser.add_argument("--days", type=int, default=365)
     parser.add_argument("--rebuild", action="store_true")
+    parser.add_argument(
+        "--evaluate-only",
+        action="store_true",
+        help="évalue les réseaux déjà entraînés sans les réentraîner (LightGBM est réentraîné)",
+    )
     args = parser.parse_args()
 
     cache = ROOT / "data" / "processed" / f"predict_{args.scenario}_{args.days}j.npz"
@@ -42,18 +52,32 @@ def main() -> None:
     results = {}
     for name in args.models:
         start = time.perf_counter()
+        out = ROOT / "models" / "predict"
         if name == "lightgbm":
             metrics = train_lightgbm(train, val, test)
+        elif args.evaluate_only:
+            import torch
+
+            from spareparts.predict.dataset import HORIZON
+            from spareparts.predict.models import ARCHITECTURES
+
+            model = ARCHITECTURES[name](5, train.static.shape[1], train.event_bin.shape[1], HORIZON)
+            model.load_state_dict(torch.load(out / f"{name}_{args.scenario}.pt"))
+            metrics = evaluate_network(model, val, test)
         else:
             import torch
 
             model, metrics = train_network(name, train, val, test, epochs=args.epochs)
-            out = ROOT / "models" / "predict"
             out.mkdir(parents=True, exist_ok=True)
             torch.save(model.state_dict(), out / f"{name}_{args.scenario}.pt")
         metrics["duree_s"] = round(time.perf_counter() - start, 1)
         results[name] = metrics
-        print(name, {k: round(v, 3) if isinstance(v, float) else v for k, v in metrics.items()})
+        week = metrics["a_7_jours"]
+        print(
+            f"{name:9s} 24 h : rappel {metrics['rappel']:.3f}  F1 {metrics['f1']:.3f}  "
+            f"PR-AUC {metrics['pr_auc']:.3f} | 7 j : rappel {week['rappel']:.3f}  "
+            f"F1 {week['f1']:.3f}  PR-AUC {week['pr_auc']:.3f}"
+        )
 
     report = ROOT / "reports" / "metrics"
     report.mkdir(parents=True, exist_ok=True)

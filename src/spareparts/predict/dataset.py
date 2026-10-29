@@ -45,6 +45,10 @@ class PredictionData:
         """Panne de chaque composant dans les 24 heures : [N, K] booléen."""
         return self.event_bin == 0
 
+    def label_days(self, days: int) -> np.ndarray:
+        """Panne de chaque composant dans les ``days`` prochains jours : [N, K] booléen."""
+        return (self.event_bin >= 0) & (self.event_bin < days)
+
     def save(self, path) -> None:
         np.savez_compressed(path, **{f: getattr(self, f) for f in self.__dataclass_fields__})
 

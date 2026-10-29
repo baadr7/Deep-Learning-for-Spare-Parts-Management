@@ -41,6 +41,23 @@ def load(name: str) -> pd.DataFrame:
     return df
 
 
+def calibration() -> dict | None:
+    """Lois de Weibull ajustées et résultats de validation, s'ils ont été calculés."""
+    import json
+
+    import yaml
+
+    calib_dir = ROOT / "configs" / "calibration"
+    raw = calib_dir / "azure_weibull.yaml"
+    if not raw.exists():
+        return None
+    out = {"lois": yaml.safe_load(raw.read_text(encoding="utf-8"))}
+    validation = ROOT / "reports" / "metrics" / "validation_azure.json"
+    if validation.exists():
+        out["validation"] = json.loads(validation.read_text(encoding="utf-8"))
+    return out
+
+
 @lru_cache(maxsize=1)
 def summary() -> dict:
     """Indicateurs descriptifs utilisés par la page « Données » de l'application."""

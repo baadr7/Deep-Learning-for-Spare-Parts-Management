@@ -64,6 +64,27 @@ def test_preventive_consumes_a_part(cfg):
     assert sim.state[0] == MachineState.PREVENTIVE
 
 
+def test_one_visit_can_replace_several_components(cfg):
+    sim = FleetSimulation(cfg, seed=1)
+    before = sim.stock.copy()
+    free = sim.techs_free
+    assert sim.apply(Decisions(preventive=[(0, 0), (0, 1)])) == []
+    assert sim.stock[sim.part_of[0, 0]] == before[sim.part_of[0, 0]] - 1
+    assert sim.stock[sim.part_of[0, 1]] == before[sim.part_of[0, 1]] - 1
+    sim.advance_day()
+    assert sim.n_preventive == 2
+    assert sim.techs_free == free
+
+
+def test_azure_trace_replay_runs_on_a_tiny_schedule():
+    from spareparts.validation import AzureTracePolicy, azure_config
+
+    weibull = {f"comp{i}": {"beta": 1.8, "eta": 4000.0} for i in range(1, 5)}
+    sim = FleetSimulation(azure_config(weibull), seed=0)
+    result = sim.run(AzureTracePolicy({0: [(0, 0), (0, 2)], 3: [(5, 1)]}), days=6)
+    assert result.kpis["maintenances_preventives"] == 3
+
+
 def test_orders_arrive_and_refill_stock(cfg):
     sim = FleetSimulation(cfg, seed=1, log_events=True)
     sim.apply(Decisions(urgent={0: 5}))

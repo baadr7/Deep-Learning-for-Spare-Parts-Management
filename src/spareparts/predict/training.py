@@ -53,23 +53,32 @@ def train_lightgbm(train: PredictionData, val: PredictionData, test: PredictionD
     import lightgbm as lgb
 
     Xtr, Xva, Xte = (tabular_features(d) for d in (train, val, test))
-    ytr, yva, yte = (d.label_24h() for d in (train, val, test))
-    K = ytr.shape[1]
-    p_val, p_test = np.zeros(yva.shape), np.zeros(yte.shape)
-    for k in range(K):
-        pos = max(int(ytr[:, k].sum()), 1)
-        clf = lgb.LGBMClassifier(
-            n_estimators=300,
-            learning_rate=0.05,
-            num_leaves=31,
-            scale_pos_weight=(len(ytr) - pos) / pos,
-            verbose=-1,
-        )
-        clf.fit(Xtr, ytr[:, k])
-        p_val[:, k] = clf.predict_proba(Xva)[:, 1]
-        p_test[:, k] = clf.predict_proba(Xte)[:, 1]
-    thr = best_threshold(yva, p_val)
-    return classification_metrics(yte, p_test, thr)
+
+    def fit_horizon(days: int) -> dict:
+        ytr, yva, yte = (d.label_days(days) for d in (train, val, test))
+        p_val, p_test = np.zeros(yva.shape), np.zeros(yte.shape)
+        for k in range(ytr.shape[1]):
+            # Moins de 200 pannes par composant : arbres peu profonds, poids des pannes plafonné
+            # et sous-échantillonnage, sans quoi le modèle apprend les exemples par cœur.
+            clf = lgb.LGBMClassifier(
+                n_estimators=200,
+                learning_rate=0.05,
+                num_leaves=15,
+                min_child_samples=50,
+                subsample=0.8,
+                subsample_freq=1,
+                colsample_bytree=0.8,
+                scale_pos_weight=10.0,
+                verbose=-1,
+            )
+            clf.fit(Xtr, ytr[:, k])
+            p_val[:, k] = clf.predict_proba(Xva)[:, 1]
+            p_test[:, k] = clf.predict_proba(Xte)[:, 1]
+        return classification_metrics(yte, p_test, best_threshold(yva, p_val))
+
+    metrics = fit_horizon(1)
+    metrics["a_7_jours"] = fit_horizon(7)
+    return metrics
 
 
 def train_network(
@@ -87,7 +96,7 @@ def train_network(
     """Entraîne un réseau de survie et renvoie (modèle, métriques sur le test)."""
     import torch
 
-    from spareparts.predict.models import ARCHITECTURES, failure_probability, survival_loss
+    from spareparts.predict.models import ARCHITECTURES, survival_loss
 
     torch.manual_seed(seed)
     K = train.event_bin.shape[1]
@@ -102,7 +111,7 @@ def train_network(
             torch.from_numpy(d.observed.astype(np.int64)),
         )
 
-    tr, va, te = tensors(train), tensors(val), tensors(test)
+    tr, va = tensors(train), tensors(val)
 
     def predict(t):
         model.eval()
@@ -136,13 +145,34 @@ def train_network(
             if patience >= 3:
                 break
     model.load_state_dict(best_state)
+    return model, evaluate_network(model, val, test)
 
-    p_val = failure_probability(predict(va), 1).numpy()
-    p_test = failure_probability(predict(te), 1).numpy()
-    thr = best_threshold(val.label_24h(), p_val)
-    metrics = classification_metrics(test.label_24h(), p_test, thr)
-    metrics["c_index_7j"] = _concordance(test, failure_probability(predict(te), 7).numpy())
-    return model, metrics
+
+def evaluate_network(model, val: PredictionData, test: PredictionData) -> dict:
+    """Métriques à 24 heures et à 7 jours ; seuils choisis sur la validation."""
+    import torch
+
+    from spareparts.predict.models import failure_probability
+
+    def logits(d: PredictionData):
+        model.eval()
+        seq, static = torch.from_numpy(d.seq), torch.from_numpy(d.static)
+        with torch.no_grad():
+            return torch.cat(
+                [model(seq[i : i + 4096], static[i : i + 4096]) for i in range(0, len(seq), 4096)]
+            )
+
+    lv, lt = logits(val), logits(test)
+    out = {}
+    for days in (1, 7):
+        p_val = failure_probability(lv, days).numpy()
+        p_test = failure_probability(lt, days).numpy()
+        thr = best_threshold(val.label_days(days), p_val)
+        out[days] = classification_metrics(test.label_days(days), p_test, thr)
+    metrics = out[1]
+    metrics["a_7_jours"] = out[7]
+    metrics["c_index_7j"] = _concordance(test, failure_probability(lt, 7).numpy())
+    return metrics
 
 
 def _concordance(data: PredictionData, risk7: np.ndarray) -> float:

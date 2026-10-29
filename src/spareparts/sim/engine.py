@@ -498,13 +498,15 @@ class FleetSimulation:
         self.state[m] = S.OPERATIONAL
         self._log("remise_en_service", m, k)
 
-    def _preventive(self, m: int, k: int):
+    def _preventive(self, m: int, components: list[int]):
+        """Une visite préventive : un technicien remplace un ou plusieurs composants."""
         with self.techs.request(priority=1) as req:
             yield req
-            yield from self._intervene(m, k, corrective=False)
-        self.n_preventive += 1
+            for k in components:
+                yield from self._intervene(m, k, corrective=False)
+                self.n_preventive += 1
+                self._log("fin_preventive", m, k)
         self.state[m] = S.OPERATIONAL
-        self._log("fin_preventive", m, k)
 
     def _overhaul(self, m: int):
         spec = self._overhaul_spec[m]
@@ -600,25 +602,38 @@ class FleetSimulation:
         for p, qty in decisions.urgent.items():
             if qty > 0:
                 self.env.process(self._order(int(p), int(qty), urgent=True))
+        # Les composants d'une même machine sont regroupés en une seule visite.
+        visits: dict[int, list[int]] = {}
+        for m, k in decisions.preventive:
+            ks = visits.setdefault(int(m), [])
+            if int(k) not in ks:
+                ks.append(int(k))
         rejected = []
         free = self.techs_free
-        for m, k in decisions.preventive:
-            p = int(self.part_of[m, k])
-            reason = None
-            if self.state[m] != S.OPERATIONAL:
-                reason = "machine indisponible"
-            elif self.stock[p] <= 0:
-                reason = "pièce absente du stock"
-            elif free <= 0:
-                reason = "aucun technicien libre"
-            if reason:
-                rejected.append({"machine": int(m), "component": int(k), "reason": reason})
+        for m, ks in visits.items():
+            if self.state[m] != S.OPERATIONAL or free <= 0:
+                reason = (
+                    "machine indisponible"
+                    if self.state[m] != S.OPERATIONAL
+                    else ("aucun technicien libre")
+                )
+                rejected += [{"machine": m, "component": k, "reason": reason} for k in ks]
                 continue
-            free -= 1
-            self.stock[p] -= 1
-            self.state[m] = S.PREVENTIVE
-            self._log("maintenance_preventive", m, k)
-            self.env.process(self._preventive(int(m), int(k)))
+            kept = []
+            for k in ks:
+                p = int(self.part_of[m, k])
+                if self.stock[p] <= 0:
+                    rejected.append(
+                        {"machine": m, "component": k, "reason": "pièce absente du stock"}
+                    )
+                    continue
+                self.stock[p] -= 1
+                kept.append(k)
+                self._log("maintenance_preventive", m, k)
+            if kept:
+                free -= 1
+                self.state[m] = S.PREVENTIVE
+                self.env.process(self._preventive(m, kept))
         return rejected
 
     def _close_day(self) -> tuple[int, int]:

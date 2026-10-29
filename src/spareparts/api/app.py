@@ -199,7 +199,7 @@ async def whatif(req: WhatIfRequest) -> dict:
 
 @app.get("/api/data/summary")
 def data_summary() -> dict:
-    return jsonable(azure.summary())
+    return jsonable({**azure.summary(), "calibration": azure.calibration()})
 
 
 _surrogate: dict = {}

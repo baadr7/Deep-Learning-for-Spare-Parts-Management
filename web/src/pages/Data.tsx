@@ -1,8 +1,66 @@
 import { useQuery } from "@tanstack/react-query";
 import { KpiList, Loading, Notice, Page, Section } from "../components/ui";
-import { api } from "../lib/api";
+import { api, type Calibration } from "../lib/api";
 import { axisStyle, baseOption, Chart } from "../lib/chart";
 import { fmtInt, fmtNum } from "../lib/format";
+
+function CalibrationSection({ calibration }: { calibration: Calibration }) {
+  const v = calibration.validation;
+  const year = v?.annee_2015;
+  return (
+    <Section
+      title="Lois de durée de vie"
+      description="Lois de Weibull ajustées sur les durées entre remplacements, les remplacements planifiés étant traités comme des observations censurées. Un paramètre de forme supérieur à 1 traduit une usure : la maintenance préventive a alors un intérêt."
+    >
+      <table className="w-full text-[14px]">
+        <thead>
+          <tr className="border-b border-line-strong text-left text-[13px] text-ink-soft">
+            <th className="py-2.5 font-medium">Composant</th>
+            <th className="py-2.5 text-right font-medium">Forme β</th>
+            <th className="py-2.5 text-right font-medium">Échelle ajustée</th>
+            {v && <th className="py-2.5 text-right font-medium">Échelle corrigée</th>}
+            {year && <th className="py-2.5 text-right font-medium">Pannes 2015, Azure</th>}
+            {year && <th className="py-2.5 text-right font-medium">Simulées</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {Object.entries(calibration.lois).map(([comp, law]) => {
+            const y = year?.[comp];
+            return (
+              <tr key={comp} className="border-b border-line">
+                <td className="py-2.5">{comp}</td>
+                <td className="py-2.5 text-right tabular">{fmtNum(law.beta, 2)}</td>
+                <td className="py-2.5 text-right tabular">{fmtNum(law.eta / 24, 0)} j</td>
+                {v && <td className="py-2.5 text-right tabular">{fmtNum(v.lois_corrigees[comp].eta / 24, 0)} j</td>}
+                {y && <td className="py-2.5 text-right tabular">{fmtInt(y.azure)}</td>}
+                {y && (
+                  <td className="py-2.5 text-right tabular">
+                    {fmtInt(y.simulees)}
+                    <span className="ml-2 text-ink-soft">
+                      {y.ecart_relatif > 0 ? "+" : ""}
+                      {fmtNum(100 * y.ecart_relatif, 1)} %
+                    </span>
+                  </td>
+                )}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {v && (
+        <p className="mt-3 max-w-[70ch] text-[13px] text-ink-soft">
+          Rejouée dans le simulateur, la maintenance planifiée d'Azure donne environ 30 % de pannes de moins que la réalité
+          avec les lois ajustées directement : les remplacements planifiés visent sans doute des composants déjà usés. L'échelle
+          est donc corrigée par simulation sur le premier semestre 2015.{" "}
+          {year && (v.critere_atteint ? "Sur l'année, l'écart reste inférieur à 10 % pour chaque composant." : "Sur l'année, l'écart dépasse 10 % pour au moins un composant.")}{" "}
+          Sur le seul second semestre, que la correction n'a pas vu, l'écart maximal atteint{" "}
+          {fmtNum(100 * Math.max(...Object.values(v.validation_s2).map((r) => Math.abs(r.ecart_relatif))), 0)} %, du même ordre
+          que la variation des pannes réelles d'un semestre à l'autre.
+        </p>
+      )}
+    </Section>
+  );
+}
 import { PALETTE } from "../lib/states";
 
 const FILES: Record<string, string> = {
@@ -117,6 +175,7 @@ export function Data() {
                 </tbody>
               </table>
             </Section>
+            {data.calibration && <CalibrationSection calibration={data.calibration} />}
           </div>
           <aside className="space-y-8">
             <div className="rounded-md bg-mist px-5 py-4">

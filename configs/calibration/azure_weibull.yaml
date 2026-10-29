@@ -1,0 +1,21 @@
+# Lois de Weibull ajustées sur le jeu Azure (heures calendaires, machines 24 h/24).
+comp1:
+  beta: 1.8024228587939544
+  eta: 4233.962775523793
+  n: 802
+  pannes: 183
+comp2:
+  beta: 1.5034600978677823
+  eta: 3668.8258282942506
+  n: 861
+  pannes: 256
+comp3:
+  beta: 1.903915760137688
+  eta: 5092.873020211563
+  n: 806
+  pannes: 128
+comp4:
+  beta: 1.945832369927424
+  eta: 4331.744270544101
+  n: 810
+  pannes: 176
