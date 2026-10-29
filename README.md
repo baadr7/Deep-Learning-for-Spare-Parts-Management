@@ -68,7 +68,7 @@ uv run pytest
 | `uv run python scripts/optimize_p1.py --trials 40` | Règle la politique P1 et enregistre ses paramètres |
 | `uv run python scripts/train_predictor.py` | Simule cinq années, entraîne LightGBM, GRU, TCN et LSTM, écrit `reports/metrics` |
 | `uv run python scripts/train_rl.py --level n1` | Entraîne l'agent P4 (MaskablePPO, niveau N1) |
-| `uv run python scripts/train_rl.py --level n2` | Entraîne l'agent P5 (niveau N2, décisions machine par machine) |
+| `uv run python scripts/train_rl.py --level n2` | Entraîne l'agent P5 (niveau N2, décisions machine par machine) ; `--resume <modèle>` prolonge un apprentissage |
 | `uv run python scripts/train_rl.py --level reduced --algo dqn` | Entraîne le DQN de comparaison |
 | `uv run python scripts/train_bdq.py` | Entraîne le Branching Dueling Q-Network au niveau N2 |
 | `uv run python scripts/choose_agent_mode.py` | Choisit, sur les graines de réglage, si P4 et P5 jouent leur action la plus probable ou tirent leurs actions |

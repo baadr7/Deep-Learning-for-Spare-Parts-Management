@@ -137,11 +137,16 @@ def main() -> None:
                     round((s["cout_total"]["high"] - s["cout_total"]["mean"]) / 1000, 2),
                 ]
             )
-        # Étiquettes du nuage coût, TRS : au-dessus puis au-dessous du point, en alternant dans
-        # l'ordre des coûts, pour que deux politiques voisines ne se recouvrent pas.
+        # Étiquettes du nuage coût, TRS : au-dessus du point, sauf si une politique de coût voisin
+        # (moins de 1 500 UR d'écart) a un TRS nettement plus élevé ; l'étiquette passe alors
+        # au-dessous, pour ne pas chevaucher le point ou la barre de sa voisine.
         rows.sort(key=lambda r: r[1])
-        for i, row in enumerate(rows):
-            row.append("south" if i % 2 == 0 else "north")
+        for row in rows:
+            crowded = any(
+                other is not row and abs(other[1] - row[1]) < 1500 and other[4] > row[4] + 0.05
+                for other in rows
+            )
+            row.append("north" if crowded else "south")
         write(
             "evaluation.csv",
             [

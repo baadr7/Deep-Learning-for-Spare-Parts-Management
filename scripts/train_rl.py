@@ -46,6 +46,10 @@ def main() -> None:
         help="bonus d'entropie de PPO (par défaut 0,01, et 0 au niveau n2)",
     )
     parser.add_argument("--output", help="chemin du modèle (par défaut models/rl/...)")
+    parser.add_argument(
+        "--resume",
+        help="modèle MaskablePPO à prolonger ; --timesteps compte alors les pas supplémentaires",
+    )
     args = parser.parse_args()
 
     from sb3_contrib import MaskablePPO
@@ -72,7 +76,13 @@ def main() -> None:
     # actions uniformes, à l'opposé du biais initial : l'agent se dégradait au fil des mises à jour.
     ent_coef = args.ent_coef if args.ent_coef is not None else (0.0 if args.level == "n2" else 0.01)
 
-    if args.algo == "dqn":
+    if args.resume:
+        if args.algo != "maskable_ppo":
+            raise SystemExit("--resume ne s'applique qu'à MaskablePPO")
+        # Réglages, poids et compteur de pas viennent du modèle enregistré ; la normalisation des
+        # récompenses, qui n'y figure pas, se réestime en quelques mises à jour.
+        model = MaskablePPO.load(args.resume, env=vec, device="cpu", tensorboard_log=str(log_dir))
+    elif args.algo == "dqn":
         if args.level != "reduced":
             raise SystemExit("le DQN classique ne s'applique qu'au niveau « reduced »")
         model = DQN("MlpPolicy", vec, learning_rate=3e-4, buffer_size=200_000, **common)
@@ -101,7 +111,7 @@ def main() -> None:
             **common,
         )
 
-    if args.level == "n2" and args.algo == "maskable_ppo":
+    if args.level == "n2" and args.algo == "maskable_ppo" and not args.resume:
         import torch
 
         from spareparts.envs.codecs import inaction_prior
@@ -131,6 +141,8 @@ def main() -> None:
         tb_log_name=run_name,
         progress_bar=False,
         callback=keep_best,
+        # Un apprentissage prolongé continue la même courbe dans TensorBoard.
+        reset_num_timesteps=not args.resume,
     )
     if keep_best and keep_best.saved:
         print(f"meilleur coût annuel moyen : {-keep_best.best * 150:.0f} UR")

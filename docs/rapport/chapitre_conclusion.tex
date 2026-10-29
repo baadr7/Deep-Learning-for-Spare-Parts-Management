@@ -15,7 +15,7 @@ Deux enseignements en ressortent. Le premier est que la valeur vient de l'inform
 O1 & Jeu Azure enrichi (durées, familles, défauts, coûts) ; une fuite d'information temporelle détectée, corrigée et couverte par un test & Atteint \\
 O2 & Pannes d'Azure reproduites à 10~\% près : écarts de $-$4,3 à $+$7,9~\% sur 2015, jusqu'à 18~\% sur le seul second semestre & Atteint sur l'année \\
 O3 & F1 supérieur à LightGBM : vrai aux deux horizons sur données simulées, à 7 jours seulement sur Azure & Atteint en partie \\
-O4 & Coût inférieur à P1 à disponibilité au moins égale : P4 à $+$1,1~\%, P5 à $+$19~\% & Non atteint \\
+O4 & Coût inférieur à P1 à disponibilité au moins égale : P4 à $+$1,1~\%, P5 à $+$14~\% & Non atteint \\
 O5 & $R^2$ supérieur à 0,9 sur des scénarios non vus : de 0,913 à 0,983 & Atteint \\
 O6 & Application web de sept pages, parcours principal testé de bout en bout & Atteint \\
 \bottomrule
@@ -33,7 +33,7 @@ O6 & Application web de sept pages, parcours principal testé de bout en bout & 
 \subsection{Perspectives}
 
 \begin{itemize}
-\item Prolonger l'apprentissage de P5, dont le coût baissait encore à la fin des 200\,000 pas, et donner au BDQ une récompense par machine, qui attribuerait à chaque branche l'effet de sa propre décision.
+\item Donner aux agents du niveau N2 une récompense par machine, qui attribuerait à chaque branche l'effet de sa propre décision : prolongé jusqu'à 500\,000 pas, P5 plafonne autour de 59\,000 UR, signe que la durée d'apprentissage n'est plus le facteur limitant.
 \item Donner aux agents le risque estimé par le réseau de survie : le codec d'observation le prévoit déjà, et l'agent combinerait alors l'information de P3 et l'adaptation de l'apprentissage par renforcement.
 \item Entraîner les agents sur un ensemble de scénarios tirés au hasard (délais, taux de panne, effectifs) plutôt que sur le seul scénario nominal, pour obtenir des politiques robustes par construction.
 \item Remplacer la recherche aléatoire de P1 et la grille de P3 par une optimisation bayésienne sur le modèle de substitution, qui évalue un jeu de paramètres en quelques millisecondes.
