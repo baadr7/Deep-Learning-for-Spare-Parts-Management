@@ -137,6 +137,11 @@ def main() -> None:
                     round((s["cout_total"]["high"] - s["cout_total"]["mean"]) / 1000, 2),
                 ]
             )
+        # Étiquettes du nuage coût, TRS : au-dessus puis au-dessous du point, en alternant dans
+        # l'ordre des coûts, pour que deux politiques voisines ne se recouvrent pas.
+        rows.sort(key=lambda r: r[1])
+        for i, row in enumerate(rows):
+            row.append("south" if i % 2 == 0 else "north")
         write(
             "evaluation.csv",
             [
@@ -151,6 +156,7 @@ def main() -> None:
                 "pannes",
                 "cout_k",
                 "ic_k",
+                "ancre",
             ],
             rows,
         )

@@ -1,0 +1,78 @@
+% ================================================================ 8
+\section{Évaluation finale}\label{sec:evaluation}
+
+\subsection{Protocole}
+
+Le protocole est celui du §\,7.3 du cahier des charges. Chaque politique est simulée sur les mêmes 30 années, de graines 9000 à 9029, qu'aucun réglage ni apprentissage n'a utilisées. Les nombres aléatoires communs font que deux politiques affrontent exactement les mêmes durées de vie et les mêmes aléas de délai : l'écart observé sur une graine ne doit rien au hasard du tirage. Les moyennes sont accompagnées de leur intervalle de confiance à 95~\%, et l'écart de coût de chaque politique à P1 est testé par un test de Wilcoxon apparié sur les 30 années.
+
+\needspace{18\baselineskip}
+\subsection{Scénario nominal}
+
+\begin{tabularx}{\linewidth}{@{}l R P{3.1cm} r r r r r@{}}
+\caption{Indicateurs moyens sur 30 années, scénario S1 nominal}\label{tab:evaluation}\\
+\toprule
+\hd{Pol.} & \hd{Coût (UR)} & \hd{IC 95~\%} & \hd{TRS} & \hd{Dispo.} & \hd{Ruptures} & \hd{Attente (h)} & \hd{$p$} \\
+\midrule
+\lignes{data/tableau_evaluation.tex}
+\bottomrule
+\end{tabularx}
+
+La colonne $p$ donne la probabilité, sous l'hypothèse d'une absence d'écart avec P1, d'observer un écart de coût au moins aussi marqué. Les ruptures sont la part des demandes de pièces après panne que le stock n'a pas pu servir immédiatement ; l'attente est la durée moyenne d'attente de pièce par réparation, en heures.
+
+\intertitre{La prédiction réduit le coût, la surveillance d'état davantage encore}
+P3, qui s'appuie sur le réseau de survie, coûte 51\,000 UR par an, 2,1~\% de moins que P1, et l'écart est significatif ($p = 0{,}004$). Il ramène les pannes de 189 à 48 par an et porte la disponibilité à 99,25~\%, la meilleure des politiques réalistes. La maintenance conditionnelle P2 fait pourtant mieux, avec 47\,100 UR, soit 9,6~\% de moins que P1, sans aucun réglage. Elle ramène les pannes à 30 par an et, avec si peu de pannes, se contente des niveaux de stock de P0 : la valeur moyenne du stock est de 208 UR, contre 1\,065 pour P3 et 1\,105 pour P1. Elle surveille aussi le taux de défauts, que le réseau de survie ignore : P3 laisse les composants s'user un peu plus, avec 2,6~\% de pièces défectueuses contre 2,2~\% pour P2. L'avantage de P2 tient donc moins à la qualité de sa détection qu'à ce qu'elle observe : la dérive du signal propre à chaque composant, que le simulateur relie directement à l'usure, est une information plus directe qu'un risque de panne estimé.
+
+\intertitre{La fréquence de ruptures se lit avec le nombre de pannes}
+P2 présente 23,9~\% de ruptures, mais sur 30 demandes seulement : cela représente 7,5 ruptures par an, contre 2,1 pour P1. Ces attentes, longues (110 heures en moyenne) mais rares, ne pèsent presque pas sur le TRS, identique à celui de P1 et de P3 (96,7~\%).
+
+\intertitre{Les agents d'apprentissage par renforcement n'atteignent pas P1}
+P4 est l'agent le plus proche : 52\,700 UR par an, 1,1~\% de plus que P1, écart faible mais significatif ($p = 0{,}03$), pour un TRS presque identique (96,61 contre 96,69~\%). Il connaît autant de pannes que P1 (192 contre 189 par an) avec un stock plus léger (851 UR contre 1\,105) mais plus de ruptures (4,7 contre 2,1 par an). Ce résultat tient pour une large part à son espace d'action : au niveau N1, l'agent choisit chaque jour des seuils d'âge et des niveaux de stock, c'est-à-dire une politique de la même famille que P1. Il peut adapter ces seuils à l'état du magasin, mais il ne peut pas déclencher une maintenance sur l'état d'un composant, ce qui fait l'avantage de P2 et de P3. Le gain possible se limite donc à ce qu'apporte l'adaptation des seuils, et cet agent ne l'a pas encore trouvé.
+
+Au niveau N2, où cette limite disparaît, les agents restent loin du compte : P5 coûte 62\,100 UR, 19~\% de plus que P1, et le BDQ 92\,800 UR. P5 n'a pas appris à cibler la maintenance préventive : il laisse survenir 260 pannes par an et compense par un stock élevé. Le BDQ a presque renoncé à la maintenance préventive (27 interventions par an, 391 pannes) et accumule les commandes. Le DQN du niveau réduit, enfin, fait moins bien que P0. Avec le budget de calcul de ce projet, l'apprentissage par renforcement ne retrouve donc pas ce que les règles conçues à la main obtiennent ; la section~\ref{sec:conclusion} y revient.
+
+\intertitre{Ce qui reste à gagner}
+L'oracle, qui connaît la durée de vie réelle de chaque composant, coûte 42\,400 UR par an. L'écart de 10~\% avec P2 mesure la valeur d'une information parfaite sur l'état des composants ; il borne ce qu'un meilleur prédicteur pourrait encore apporter.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[rapport, height=7cm,
+  xlabel={Coût total annuel (milliers d'UR)}, ylabel={TRS (\%)},
+  xmajorgrids, ymajorgrids, restrict x to domain=40:66, enlarge y limits=0.12,
+  xticklabel style={/pgf/number format/.cd, use comma, fixed, precision=1},
+  yticklabel style={/pgf/number format/.cd, use comma, fixed, precision=1},
+  nodes near coords, point meta=explicit symbolic,
+  visualization depends on={value \thisrow{ancre} \as \ancre},
+  every node near coord/.append style={font=\sffamily\scriptsize, text=primaire, anchor=\ancre, inner sep=3pt},
+  ]
+\addplot+[only marks, mark=*, mark size=2.4pt, color=primaire,
+  error bars/.cd, x dir=both, x explicit, error bar style={primaire!45}]
+  table[x=cout_k, y=trs, x error=ic_k, meta=politique, col sep=comma] {data/evaluation.csv};
+\end{axis}
+\end{tikzpicture}
+\caption{Coût et TRS moyens de chaque politique ; les barres donnent l'intervalle de confiance du coût. Les politiques les plus favorables se trouvent en haut à gauche : coût faible, TRS élevé. Le BDQ (92\,800 UR, TRS de 94,0~\%) sort du cadre.}
+\label{fig:pareto}
+\end{figure}
+
+\subsection{Robustesse}
+
+Les politiques réglées ou apprises sur le scénario nominal sont ensuite confrontées, sans nouveau réglage, à trois situations dégradées : délais fournisseurs doublés, taux de panne augmenté de 30~\%, équipe réduite à un technicien. Le tableau~\ref{tab:robustesse} donne le coût moyen et sa variation par rapport au scénario nominal.
+
+\needspace{14\baselineskip}
+\begin{tabularx}{\linewidth}{@{}l R R R R@{}}
+\caption{Coût moyen sur 30 années en situation dégradée (milliers d'UR)}\label{tab:robustesse}\\
+\toprule
+\hd{Pol.} & \hd{Nominal} & \hd{Délais doublés} & \hd{Pannes $+$30~\%} & \hd{Un technicien} \\
+\midrule
+\lignes{data/tableau_robustesse.tex}
+\bottomrule
+\end{tabularx}
+
+\intertitre{Délais fournisseurs doublés}
+C'est la situation qui sépare le plus les politiques. P1 et P3 ne voient leur coût croître que de 6~\% : P1 dispose de stocks élevés, et P3 dimensionne ses commandes sur la demande prévue pendant le délai, qui s'allonge avec lui. P2, dont le stock est bas, prend 25~\% et passe derrière elles. P3 devient la politique réaliste la moins chère, à 54\,400 UR, sans que l'écart avec P1 soit significatif ($p = 0{,}34$).
+
+\intertitre{Taux de panne augmenté de 30~\%}
+L'ordre du scénario nominal se maintient : P2 reste la moins chère, à 55\,000 UR, P3 et P1 restent proches l'une de l'autre ($p = 0{,}12$).
+
+\intertitre{Un seul technicien}
+Les politiques qui multiplient les interventions préventives souffrent le plus du manque de main-d'œuvre : P2 prend 22~\%, P3 16~\% et l'oracle lui-même 20~\%. P1 devient la politique réaliste la moins chère, à égalité statistique avec P2 ($p = 0{,}19$). Une politique fondée sur l'état des composants suppose donc une équipe capable d'absorber les interventions qu'elle déclenche ; les politiques étudiées se bornent à ne pas lancer plus d'interventions qu'il n'y a de techniciens libres le matin, sans planifier leurs remplacements pour lisser la charge.

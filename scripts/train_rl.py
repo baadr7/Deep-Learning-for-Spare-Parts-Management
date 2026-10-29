@@ -40,6 +40,11 @@ def main() -> None:
     parser.add_argument("--envs", type=int, default=8)
     parser.add_argument("--horizon", type=int, default=365)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--ent-coef",
+        type=float,
+        help="bonus d'entropie de PPO (par défaut 0,01, et 0 au niveau n2)",
+    )
     parser.add_argument("--output", help="chemin du modèle (par défaut models/rl/...)")
     args = parser.parse_args()
 
@@ -52,8 +57,20 @@ def main() -> None:
         for i in range(args.envs)
     ]
     vec = SubprocVecEnv(factories) if args.envs > 1 else DummyVecEnv(factories)
+    if args.algo == "maskable_ppo":
+        from stable_baselines3.common.vec_env import VecNormalize
+
+        # Sans normalisation, le critique de PPO n'apprenait rien (variance expliquée nulle aux
+        # niveaux N1 et N2) : les retours, de l'ordre de -200, varient fortement d'une année à
+        # l'autre. La normalisation des récompenses ramène ses cibles vers l'unité ; les
+        # observations restent inchangées, si bien que l'agent s'exécute ensuite sans ce wrapper.
+        vec = VecNormalize(vec, norm_obs=False, norm_reward=True, gamma=0.995)
     log_dir = ROOT / "runs" / "rl"
     common = {"verbose": 1, "seed": args.seed, "tensorboard_log": str(log_dir), "device": "cpu"}
+
+    # Au niveau N2, le bonus d'entropie se somme sur 108 dimensions et ramène l'agent vers des
+    # actions uniformes, à l'opposé du biais initial : l'agent se dégradait au fil des mises à jour.
+    ent_coef = args.ent_coef if args.ent_coef is not None else (0.0 if args.level == "n2" else 0.01)
 
     if args.algo == "dqn":
         if args.level != "reduced":
@@ -80,7 +97,7 @@ def main() -> None:
             batch_size=730,
             learning_rate=3e-4,
             gamma=0.995,
-            ent_coef=0.01,
+            ent_coef=ent_coef,
             **common,
         )
 
@@ -94,10 +111,8 @@ def main() -> None:
         with torch.no_grad():
             model.policy.action_net.bias.add_(torch.as_tensor(prior, dtype=torch.float32))
 
-    run_name = f"{args.algo}_{args.level}_{args.scenario}_s{args.seed}"
-    model.learn(total_timesteps=args.timesteps, tb_log_name=run_name, progress_bar=False)
-
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    run_name = f"{args.algo}_{args.level}_{args.scenario}_s{args.seed}"
     if args.output:
         path = Path(args.output)
     elif args.algo == "maskable_ppo" and args.level in ("n1", "n2"):
@@ -107,8 +122,46 @@ def main() -> None:
         path = MODEL_DIR / f"dqn_{args.scenario}.zip"
     else:
         path = MODEL_DIR / f"{run_name}.zip"
-    model.save(path)
+
+    # L'apprentissage peut progresser puis se dégrader : on garde le modèle dont la moyenne des
+    # derniers épisodes d'apprentissage est la meilleure plutôt que le dernier.
+    keep_best = best_model_saver(path) if args.algo == "maskable_ppo" else None
+    model.learn(
+        total_timesteps=args.timesteps,
+        tb_log_name=run_name,
+        progress_bar=False,
+        callback=keep_best,
+    )
+    if keep_best and keep_best.saved:
+        print(f"meilleur coût annuel moyen : {-keep_best.best * 150:.0f} UR")
+    else:
+        model.save(path)
     print(f"modèle enregistré dans {path}")
+
+
+def best_model_saver(path: Path):
+    """Rappel qui enregistre le modèle chaque fois que la moyenne des épisodes s'améliore."""
+    import numpy as np
+    from stable_baselines3.common.callbacks import BaseCallback
+
+    class _KeepBest(BaseCallback):
+        def __init__(self):
+            super().__init__()
+            self.best, self.saved = -np.inf, False
+
+        def _on_step(self) -> bool:
+            return True
+
+        def _on_rollout_end(self) -> None:
+            episodes = self.model.ep_info_buffer
+            if len(episodes) < 30:
+                return
+            mean = float(np.mean([e["r"] for e in episodes]))
+            if mean > self.best:
+                self.best, self.saved = mean, True
+                self.model.save(path)
+
+    return _KeepBest()
 
 
 if __name__ == "__main__":

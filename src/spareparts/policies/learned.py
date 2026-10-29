@@ -23,12 +23,30 @@ def model_path(code: str, scenario: str) -> Path:
 
 
 class LearnedPolicy(Policy):
-    def __init__(self, path: Path, level: str, name: str, label: str, horizon: int = 365):
+    """Agent entraîné, joué de façon déterministe ou en tirant ses actions.
+
+    Une politique PPO est une loi sur les actions. Son mode, action la plus probable de chaque
+    dimension, peut s'en écarter beaucoup : au niveau N2, « ne rien commander » est l'option la
+    plus probable de chaque référence, et le mode ne commande donc jamais. Le choix entre les
+    deux usages se fait sur les graines de réglage (``configs/policies``), et le tirage est
+    initialisé par la graine de la simulation pour rester reproductible.
+    """
+
+    def __init__(
+        self,
+        path: Path,
+        level: str,
+        name: str,
+        label: str,
+        horizon: int = 365,
+        deterministic: bool = True,
+    ):
         self.path = Path(path)
         self.level = level
         self.name = name
         self.label = label
         self.horizon = horizon
+        self.deterministic = deterministic
         self._model = None
 
     def _load(self):
@@ -48,6 +66,10 @@ class LearnedPolicy(Policy):
         super().reset(sim)
         self.codec = make_codec(self.level, Context.from_sim(sim, self.horizon))
         self._load()
+        if not self.deterministic:
+            import torch
+
+            torch.manual_seed(sim.seed)
 
     def decide(self, obs: Observation) -> Decisions:
         vector = self.codec.observe(obs)
@@ -55,5 +77,7 @@ class LearnedPolicy(Policy):
         if self.level == "reduced":
             action, _ = self._model.predict(vector, deterministic=True)
         else:
-            action, _ = self._model.predict(vector, action_masks=masks, deterministic=True)
+            action, _ = self._model.predict(
+                vector, action_masks=masks, deterministic=self.deterministic
+            )
         return self.codec.decide(np.asarray(action), obs)

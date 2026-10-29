@@ -85,7 +85,14 @@ def make_policy(code: str, scenario: str = "s1_nominal") -> Policy:
             raise ValueError(
                 f"agent {code} non entraîné pour {scenario} : lancer scripts/train_rl.py"
             )
-        return LearnedPolicy(path, LEVEL_OF[code], name=code, label=POLICY_LABELS[code])
+        params = tuned_parameters(code, scenario) or {}
+        return LearnedPolicy(
+            path,
+            LEVEL_OF[code],
+            name=code,
+            label=POLICY_LABELS[code],
+            deterministic=params.get("deterministic", True),
+        )
     if code == "BDQ":
         from spareparts.rl.bdq import BDQPolicy, load_bdq
 

@@ -71,6 +71,7 @@ uv run pytest
 | `uv run python scripts/train_rl.py --level n2` | Entraîne l'agent P5 (niveau N2, décisions machine par machine) |
 | `uv run python scripts/train_rl.py --level reduced --algo dqn` | Entraîne le DQN de comparaison |
 | `uv run python scripts/train_bdq.py` | Entraîne le Branching Dueling Q-Network au niveau N2 |
+| `uv run python scripts/choose_agent_mode.py` | Choisit, sur les graines de réglage, si P4 et P5 jouent leur action la plus probable ou tirent leurs actions |
 | `uv run python scripts/tune_p3.py` | Règle les seuils de la politique prédictive P3 |
 | `uv run python scripts/train_surrogate.py` | Construit le plan d'expériences et entraîne le modèle de substitution |
 | `uv run python scripts/sensitivity.py` | Indices de Sobol calculés sur le modèle de substitution |

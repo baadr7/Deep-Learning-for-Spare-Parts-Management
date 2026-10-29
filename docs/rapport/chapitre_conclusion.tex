@@ -1,0 +1,41 @@
+% ================================================================ 10
+\section{Conclusion}\label{sec:conclusion}
+
+\subsection{Bilan}
+
+La question posée par le cahier des charges appelle une réponse nuancée. L'apprentissage profond réduit bien le coût par rapport à une politique à seuils fixes correctement réglée, mais par la prédiction plutôt que par l'apprentissage par renforcement : P3, qui s'appuie sur un réseau de survie, économise 2,1~\% à disponibilité supérieure, et c'est la politique la plus robuste lorsque les délais fournisseurs doublent. Les agents d'apprentissage par renforcement, eux, n'atteignent pas P1 ; le meilleur s'en approche à 1,1~\% près. Une règle de maintenance conditionnelle simple fait mieux que toutes les politiques apprises, avec 9,6~\% d'économie.
+
+Deux enseignements en ressortent. Le premier est que la valeur vient de l'information sur l'état des composants : les politiques qui l'exploitent, P2 et P3, divisent le nombre de pannes par quatre à six, et l'oracle montre qu'il reste encore 10~\% à gagner avec une information parfaite. Le second est que l'apprentissage par renforcement bute ici sur des difficultés concrètes, que le projet a rencontrées et levées une à une : un espace d'actions de plus de $10^{76}$ combinaisons, une récompense bruitée par les pannes de toute la flotte, un critique incapable d'apprendre sans normalisation des récompenses, une politique dont l'action la plus probable diffère de la loi apprise. Chacune est documentée avec sa correction, ce qui vaut autant pour la suite que les chiffres eux-mêmes.
+
+\begin{tabularx}{\linewidth}{@{}l L P{3.2cm}@{}}
+\caption{Atteinte des objectifs du cahier des charges}\label{tab:objectifs}\\
+\toprule
+\hd{Obj.} & \hd{Critère et résultat} & \hd{Verdict} \\
+\midrule
+O1 & Jeu Azure enrichi (durées, familles, défauts, coûts) ; une fuite d'information temporelle détectée, corrigée et couverte par un test & Atteint \\
+O2 & Pannes d'Azure reproduites à 10~\% près : écarts de $-$4,3 à $+$7,9~\% sur 2015, jusqu'à 18~\% sur le seul second semestre & Atteint sur l'année \\
+O3 & F1 supérieur à LightGBM : vrai aux deux horizons sur données simulées, à 7 jours seulement sur Azure & Atteint en partie \\
+O4 & Coût inférieur à P1 à disponibilité au moins égale : P4 à $+$1,1~\%, P5 à $+$19~\% & Non atteint \\
+O5 & $R^2$ supérieur à 0,9 sur des scénarios non vus : de 0,913 à 0,983 & Atteint \\
+O6 & Application web de sept pages, parcours principal testé de bout en bout & Atteint \\
+\bottomrule
+\end{tabularx}
+
+\subsection{Limites}
+
+\begin{itemize}
+\item \textbf{Des données réelles elles-mêmes synthétiques.} Le jeu Azure a été généré par Microsoft pour illustrer la maintenance prédictive. Ses pannes sont précédées d'anomalies plus nettes qu'on ne l'observe souvent sur le terrain, ce qui explique en partie le bon score de LightGBM à 24 heures, et sa calibration repose sur une censure informative que nous avons dû corriger par simulation.
+\item \textbf{Un simulateur volontairement simplifié.} Les coûts sont exprimés en unités relatives, les fournisseurs n'ont pas de capacité limitée, une pièce déposée n'est jamais réparée ni réutilisée, et les techniciens sont interchangeables.
+\item \textbf{Un budget de calcul limité.} Chaque agent a été entraîné avec une seule graine, en quelques centaines de milliers de pas, sur un poste de quatre cœurs, avec des réglages proches des valeurs usuelles. Les écarts entre agents mesurent donc ces entraînements précis plus que les méthodes elles-mêmes ; plusieurs graines d'entraînement, des apprentissages plus longs et un réglage des hyperparamètres seraient nécessaires pour conclure sur les méthodes.
+\item \textbf{Un seul scénario d'apprentissage.} Les agents et les seuils sont réglés sur le scénario nominal ; la robustesse est mesurée sans nouvel apprentissage, ce qui correspond à l'usage réel mais pénalise les politiques les plus spécialisées.
+\end{itemize}
+
+\subsection{Perspectives}
+
+\begin{itemize}
+\item Prolonger l'apprentissage de P5, dont le coût baissait encore à la fin des 200\,000 pas, et donner au BDQ une récompense par machine, qui attribuerait à chaque branche l'effet de sa propre décision.
+\item Donner aux agents le risque estimé par le réseau de survie : le codec d'observation le prévoit déjà, et l'agent combinerait alors l'information de P3 et l'adaptation de l'apprentissage par renforcement.
+\item Entraîner les agents sur un ensemble de scénarios tirés au hasard (délais, taux de panne, effectifs) plutôt que sur le seul scénario nominal, pour obtenir des politiques robustes par construction.
+\item Remplacer la recherche aléatoire de P1 et la grille de P3 par une optimisation bayésienne sur le modèle de substitution, qui évalue un jeu de paramètres en quelques millisecondes.
+\item Confronter le simulateur et les modèles à l'historique d'un atelier réel, qui fournirait les durées, les coûts et les pratiques de maintenance que le jeu Azure ne contient pas.
+\end{itemize}
