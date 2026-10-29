@@ -66,4 +66,15 @@ uv run pytest
 | Commande | Effet |
 | --- | --- |
 | `uv run python scripts/optimize_p1.py --trials 40` | Règle la politique P1 et enregistre ses paramètres |
+| `uv run python scripts/train_predictor.py` | Simule cinq années, entraîne LightGBM, GRU, TCN et LSTM, écrit `reports/metrics` |
+| `uv run python scripts/train_rl.py --level n1` | Entraîne l'agent P4 (MaskablePPO, niveau N1) |
+| `uv run python scripts/train_rl.py --level n2` | Entraîne l'agent P5 (niveau N2, décisions machine par machine) |
+| `uv run python scripts/train_rl.py --level reduced --algo dqn` | Entraîne le DQN de comparaison |
+| `uv run python scripts/train_surrogate.py` | Construit le plan d'expériences et entraîne le modèle de substitution |
+| `uv run tensorboard --logdir runs/rl` | Suit les courbes d'apprentissage des agents |
+| `cd web && npm run e2e` | Teste le parcours principal dans Microsoft Edge (API et interface lancées) |
 | `uv run ruff check src tests` | Vérifie le style du code Python |
+
+Les politiques P4 et P5 apparaissent dans l'application dès que leur modèle existe dans
+`models/rl`, et la page « Scénarios » répond instantanément une fois le modèle de substitution
+entraîné.

@@ -124,6 +124,25 @@ export type CompareResponse = {
 
 export type WhatIfResponse = { source: string; summary: Record<string, Interval> };
 
+export type SurrogateParams = {
+  technicians: number;
+  lead_time_factor: number;
+  failure_rate_factor: number;
+  pm_factor: number;
+  stock_factor: number;
+};
+
+export type SurrogateStatus =
+  | { available: false }
+  | {
+      available: true;
+      params: Record<keyof SurrogateParams, { low: number; high: number; integer: boolean }>;
+      outputs: string[];
+      metrics: { test?: Record<string, { r2: number; mape: number }>; scenarios?: number; days?: number };
+    };
+
+export type SurrogatePrediction = Record<string, { mean: number; std: number }>;
+
 export type Overrides = {
   technicians?: number;
   lead_time_factor?: number;
@@ -169,6 +188,9 @@ export const api = {
   whatif: (body: { scenario: string; policy: string; overrides: Overrides }) =>
     request<WhatIfResponse>("/api/whatif", { method: "POST", body: JSON.stringify(body) }),
   dataSummary: () => request<DataSummary>("/api/data/summary"),
+  surrogate: () => request<SurrogateStatus>("/api/surrogate"),
+  surrogatePredict: (params: SurrogateParams) =>
+    request<SurrogatePrediction>("/api/surrogate/predict", { method: "POST", body: JSON.stringify(params) }),
 };
 
 export type DataSummary =
