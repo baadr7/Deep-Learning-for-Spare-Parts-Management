@@ -21,6 +21,8 @@ POLICY_LABELS = {
     "P3": "Prédictive sans apprentissage par renforcement",
     "P4": "Agent DRL, niveau N1",
     "P5": "Agent DRL, niveau N2",
+    "DQN": "DQN, niveau d'action réduit",
+    "BDQ": "Branching Dueling Q-Network, niveau N2",
     "Oracle": "Connaissance des pannes futures",
 }
 
@@ -40,7 +42,13 @@ def available_policies(scenario: str = "s1_nominal") -> list[str]:
     if _predictor_path(scenario):
         codes.append("P3")
     codes += [c for c in LEVEL_OF if model_path(c, scenario).exists()]
+    if _bdq_path(scenario).exists():
+        codes.append("BDQ")
     return codes + ["Oracle"]
+
+
+def _bdq_path(scenario: str) -> Path:
+    return ROOT / "models" / "rl" / f"bdq_{scenario}.pt"
 
 
 def _predictor_path(scenario: str):
@@ -77,7 +85,22 @@ def make_policy(code: str, scenario: str = "s1_nominal") -> Policy:
             raise ValueError(
                 f"agent {code} non entraîné pour {scenario} : lancer scripts/train_rl.py"
             )
-        return LearnedPolicy(path, LEVEL_OF[code], name=code, label=POLICY_LABELS[code])
+        params = tuned_parameters(code, scenario) or {}
+        return LearnedPolicy(
+            path,
+            LEVEL_OF[code],
+            name=code,
+            label=POLICY_LABELS[code],
+            deterministic=params.get("deterministic", True),
+        )
+    if code == "BDQ":
+        from spareparts.rl.bdq import BDQPolicy, load_bdq
+
+        if not _bdq_path(scenario).exists():
+            raise ValueError(
+                f"réseau BDQ non entraîné pour {scenario} : lancer scripts/train_bdq.py"
+            )
+        return BDQPolicy(load_bdq(_bdq_path(scenario)))
     if code == "Oracle":
         return OraclePolicy()
     raise ValueError(f"politique inconnue : {code}")

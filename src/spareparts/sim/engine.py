@@ -96,6 +96,7 @@ class DayRecord:
     open_hours: float
     running_hours: float
     events: list[dict]
+    day_state: np.ndarray | None = None
 
 
 def _lognormal(rng: np.random.Generator, mean: float, cv: float) -> float:
@@ -705,6 +706,7 @@ class FleetSimulation:
         # une heure, sinon « opérationnelle ».
         stopped = self._d_state_h[:, 1:]
         day_state = np.where(stopped.sum(axis=1) >= 1.0, stopped.argmax(axis=1) + 1, 0)
+        record.day_state = day_state.astype(np.int8)
         h = self.history
         h["states"].append(record.states)
         h["day_state"].append(day_state.astype(np.int8))

@@ -113,7 +113,7 @@ export function Live() {
   return (
     <Page
       title="Flotte en direct"
-      description="La simulation avance jour après jour. Chaque case est une machine ; un clic ouvre sa fiche une fois l'année terminée."
+      description="La simulation avance jour après jour. Chaque case est une machine, colorée selon son état hors service le plus long de la journée ; un clic ouvre sa fiche une fois l'année terminée."
       actions={
         <div className="flex flex-wrap items-end gap-3">
           <Field label="Scénario">

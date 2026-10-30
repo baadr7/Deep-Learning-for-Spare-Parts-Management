@@ -11,13 +11,10 @@ import argparse
 import json
 from pathlib import Path
 
-import numpy as np
-import torch
-
 from spareparts.config import ROOT, load_scenario
 from spareparts.envs.fleet_env import FleetEnv
 from spareparts.evaluation import summarize
-from spareparts.rl.bdq import BDQConfig, BDQPolicy, BranchingQNet, train_bdq
+from spareparts.rl.bdq import BDQConfig, BDQPolicy, save_bdq, train_bdq
 from spareparts.sim import FleetSimulation
 
 
@@ -30,11 +27,11 @@ def main() -> None:
     args = parser.parse_args()
 
     env = FleetEnv(scenario=args.scenario, level="n2")
-    net = train_bdq(env, BDQConfig(total_steps=args.steps))
+    history: list[tuple[int, float]] = []
+    net = train_bdq(env, BDQConfig(total_steps=args.steps), history=history)
     path = Path(args.output) if args.output else ROOT / "models" / "rl" / f"bdq_{args.scenario}.pt"
     path.parent.mkdir(parents=True, exist_ok=True)
-    blob = {"state": net.state_dict(), "sizes": net.sizes, "obs": env.observation_space.shape[0]}
-    torch.save(blob, path)
+    save_bdq(net, env.observation_space.shape[0], path)
 
     cfg = load_scenario(args.scenario)
     seeds = range(9000, 9000 + args.eval_replications)
@@ -43,17 +40,13 @@ def main() -> None:
     print({k: round(summary[k]["mean"], 3) for k in ("cout_total", "trs", "frequence_ruptures")})
     out = ROOT / "reports" / "metrics"
     out.mkdir(parents=True, exist_ok=True)
+    lines = ["pas,cout_annuel"] + [f"{n},{c:.1f}" for n, c in history]
+    curve = out / f"bdq_{args.scenario}_episodes.csv"
+    curve.write_text("\n".join(lines) + "\n", encoding="utf-8")
     (out / f"bdq_{args.scenario}.json").write_text(
         json.dumps(summary, indent=2, ensure_ascii=False, default=float), encoding="utf-8"
     )
     print(f"modèle enregistré dans {path}")
-
-
-def load(path) -> BranchingQNet:
-    blob = torch.load(path, map_location="cpu")
-    net = BranchingQNet(blob["obs"], np.array(blob["sizes"]))
-    net.load_state_dict(blob["state"])
-    return net
 
 
 if __name__ == "__main__":

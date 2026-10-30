@@ -1,0 +1,416 @@
+% Rapport de projet : Deep Learning for Spare Parts Management
+% Compilation : xelatex (deux passes). Les graphiques lisent les fichiers de data/,
+% produits par scripts/export_report_data.py.
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath}
+\usepackage{fontspec}
+\usepackage{unicode-math}
+\usepackage[french]{babel}
+\frenchsetup{StandardLists=true}
+
+\setmainfont{Palatino Linotype}
+\setsansfont{Segoe UI}[BoldFont={Segoe UI Semibold}]
+\newfontfamily\affiche{Segoe UI Light}
+\setmathfont{Cambria Math}
+
+\usepackage[top=2.7cm,bottom=2.6cm,left=2.5cm,right=2.5cm,headheight=15pt,headsep=0.8cm,footskip=1.2cm]{geometry}
+\usepackage{xcolor}
+\definecolor{primaire}{HTML}{1F3B57}
+\definecolor{accent}{HTML}{C0602E}
+\definecolor{fond}{HTML}{EEF2F6}
+\definecolor{gris}{HTML}{6F7C89}
+
+\usepackage{microtype}
+\usepackage{setspace}
+\setstretch{1.12}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+
+\usepackage{titlesec}
+\usepackage{titletoc}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{booktabs,tabularx,array,makecell,ragged2e,ltablex}
+\keepXColumns
+\setlength{\LTpre}{0.4em}
+\setlength{\LTpost}{0.9em}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{needspace}
+\usepackage{caption}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\pgfplotsset{compat=1.18}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=primaire,citecolor=accent,urlcolor=accent,
+  pdftitle={Rapport de projet, Deep Learning for Spare Parts Management},
+  pdfauthor={Adam Elmadani}}
+\urlstyle{same}
+
+\titleformat{\section}{\sffamily\fontsize{17}{21}\selectfont\color{primaire}}
+  {\textcolor{accent}{\thesection}}{0.7em}{}[\nopagebreak\vspace{-0.3em}\nopagebreak{\color{primaire!18}\titlerule[0.8pt]}]
+\titlespacing*{\section}{0pt}{2.0em}{1.1em}
+\titleformat{\subsection}{\sffamily\bfseries\fontsize{12.5}{15}\selectfont\color{primaire}}
+  {\thesubsection}{0.7em}{}
+\titlespacing*{\subsection}{0pt}{1.4em}{0.4em}
+\newcommand{\intertitre}[1]{\par\vspace{0.3em}{\sffamily\bfseries\color{primaire}#1}\par\vspace{-0.2em}}
+
+\titlecontents{section}[0pt]{\addvspace{7pt}\sffamily\bfseries\color{primaire}}
+  {\contentslabel{1.7em}}{}{\hfill\contentspage}
+\titlecontents{subsection}[1.7em]{\addvspace{1pt}\small}
+  {\contentslabel{2.4em}}{}{\titlerule*[0.7pc]{.}\contentspage}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[R]{\sffamily\footnotesize\color{gris}\nouppercase{\leftmark}}
+\fancyfoot[L]{\sffamily\footnotesize\color{gris}ENSAM, semestre 9}
+\fancyfoot[R]{\sffamily\footnotesize\color{gris}\thepage\ / \pageref*{LastPage}}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\sectionmark}[1]{\markboth{\thesection\quad #1}{}}
+
+\setlist{itemsep=0.2em,topsep=0.3em,leftmargin=1.4em}
+\setlist[itemize,1]{label={\textcolor{accent}{\small\textbullet}}}
+
+\renewcommand{\arraystretch}{1.28}
+\newcolumntype{L}{>{\RaggedRight\arraybackslash}X}
+\newcolumntype{P}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+\newcolumntype{R}{>{\RaggedLeft\arraybackslash}X}
+\newcommand{\hd}[1]{\leavevmode{\sffamily\bfseries\color{primaire}#1}}
+% Lignes de tableau générées par scripts/export_report_data.py. La primitive \@@input, à la
+% différence de \input, ne laisse rien derrière elle qui ouvrirait une cellule avant \bottomrule.
+\makeatletter
+\newcommand{\lignes}[1]{\@@input #1 }
+\makeatother
+\setlength{\heavyrulewidth}{0.9pt}
+\setlength{\lightrulewidth}{0.4pt}
+\captionsetup{font=small,labelfont={sf,bf,color=primaire},labelsep=period,
+  justification=raggedright,singlelinecheck=false,skip=6pt}
+\captionsetup[table]{position=top}
+\addto\captionsfrench{%
+  \renewcommand{\tablename}{Tableau}%
+  \renewcommand{\contentsname}{Sommaire}%
+  \renewcommand{\refname}{Références}}
+
+\pgfplotsset{
+  rapport/.style={
+    width=\linewidth, height=6.2cm,
+    axis lines*=left, axis line style={gris!60},
+    tick style={draw=none},
+    ticklabel style={font=\sffamily\footnotesize, text=gris!90!black},
+    label style={font=\sffamily\footnotesize, text=gris!90!black},
+    legend style={font=\sffamily\footnotesize, draw=none, fill=none},
+    ymajorgrids, grid style={gris!15},
+  },
+}
+
+\begin{document}
+
+% ---------------------------------------------------------------- Page de garde
+\begin{titlepage}
+\begin{tikzpicture}[remember picture,overlay]
+  \fill[primaire] (current page.north west) rectangle ([xshift=1.3cm]current page.south west);
+  \fill[accent] ([xshift=1.3cm]current page.north west) rectangle ([xshift=1.42cm]current page.south west);
+\end{tikzpicture}
+\sffamily
+\vspace*{0.4cm}
+{\small\color{gris}\addfontfeatures{LetterSpace=6}ÉCOLE NATIONALE SUPÉRIEURE D'ARTS ET MÉTIERS}\par
+\vspace{3pt}
+{\small\color{gris}Semestre 9 \quad·\quad Année universitaire 2026-2027}\par
+\vspace{6.2cm}
+{\color{accent}\rule{2.4cm}{2.5pt}}\par
+\vspace{0.7cm}
+{\affiche\fontsize{36}{42}\selectfont\color{primaire}Rapport de projet}\par
+\vspace{0.55cm}
+{\fontsize{17}{21}\selectfont\color{primaire!80}Deep Learning for Spare Parts Management}\par
+\vspace{0.45cm}
+\parbox{13cm}{\rmfamily\large\itshape\color{gris!80!black}Pilotage conjoint de la maintenance et du stock de pièces de rechange d'une flotte de machines industrielles}\par
+\vfill
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{@{}l@{\hspace{1.4cm}}l@{}}
+\textcolor{gris}{Réalisé par} & Adam Elmadani \\
+\textcolor{gris}{Encadré par} & Pr. Aziza Belmaati \\
+ & Pr. Oumaima Bounou \\
+\textcolor{gris}{Version} & 1.0, octobre 2026 \\
+\end{tabular}
+\vspace*{0.3cm}
+\end{titlepage}
+
+{\sffamily\fontsize{14}{17}\selectfont\color{primaire}Résumé}\par
+\vspace{0.3em}
+\input{resume}
+
+\vspace{1cm}
+\tableofcontents
+\newpage
+
+% ================================================================ 1
+\section{Introduction}
+
+Ce rapport présente la réalisation du projet défini par le cahier des charges : un simulateur à événements discrets d'une flotte de 100 machines, des modèles d'apprentissage profond qui anticipent les pannes, des agents d'apprentissage par renforcement qui décident des commandes et des maintenances préventives, un modèle de substitution qui accélère l'évaluation de scénarios, et une application web qui restitue l'ensemble.
+
+La question posée par le cahier des charges reste le fil conducteur : une politique pilotée par l'apprentissage profond réduit-elle le coût total de la flotte, à disponibilité au moins égale, par rapport à une politique à seuils fixes correctement réglée ? La section~\ref{sec:evaluation} y répond à partir de 30 années simulées par politique.
+
+Le code, les configurations et les résultats bruts sont regroupés dans le dépôt du projet ; l'annexe~\ref{sec:reproduire} donne les commandes qui reproduisent chaque résultat.
+
+% ================================================================ 2
+\section{Données et calibration}\label{sec:donnees}
+
+\subsection{Le jeu de données Azure}
+
+Le jeu Microsoft Azure Predictive Maintenance \cite{azure} confirme les volumes annoncés dans le cahier des charges.
+
+\begin{tabularx}{\linewidth}{@{}L R@{}}
+\caption{Volumes du jeu de données Azure}\\
+\toprule
+\hd{Fichier} & \hd{Lignes} \\
+\midrule
+Télémétrie horaire (tension, rotation, pression, vibration) & 876\,100 \\
+Erreurs non bloquantes & 3\,919 \\
+Remplacements de composants & 3\,286 \\
+Pannes & 761 \\
+Machines & 100 \\
+\bottomrule
+\end{tabularx}
+
+Les pannes se répartissent entre 192 pour comp1, 259 pour comp2, 131 pour comp3 et 179 pour comp4. Les machines appartiennent à quatre modèles (16, 17, 35 et 32 machines) et ont de 0 à 20 ans. Les moyennes et écarts-types des signaux (170,8 et 15,5 pour la tension, 446,6 et 52,7 pour la rotation, 100,9 et 11,0 pour la pression, 40,4 et 5,4 pour la vibration) correspondent aux niveaux utilisés par le générateur de télémétrie du simulateur.
+
+L'analyse du journal de maintenance révèle une pratique particulière : tous les remplacements sont datés de 6 heures, et les remplacements planifiés ont lieu lors de tournées tous les 15 jours. L'intervalle médian entre deux remplacements planifiés d'un même composant est de 24 à 30 jours, avec un écart-type voisin de la moyenne (environ 50 jours).
+
+\subsection{Lois de durée de vie}
+
+Une durée de vie s'étend entre deux remplacements d'un même composant. Elle est complète lorsque le remplacement qui la termine fait suite à une panne, censurée à droite lorsqu'il s'agit d'un remplacement planifié ou de la fin de l'historique. Les lois de Weibull sont ajustées par maximum de vraisemblance avec la bibliothèque lifelines.
+
+\begin{tabularx}{\linewidth}{@{}L R R R R@{}}
+\caption{Lois de Weibull ajustées sur Azure}\label{tab:weibull}\\
+\toprule
+\hd{Composant} & \hd{Forme $\beta$} & \hd{Échelle $\eta$} & \hd{Pannes} & \hd{Durées} \\
+\midrule
+comp1 & 1,80 & 4\,234 h & 183 & 802 \\
+comp2 & 1,50 & 3\,669 h & 256 & 861 \\
+comp3 & 1,90 & 5\,093 h & 128 & 806 \\
+comp4 & 1,95 & 4\,332 h & 176 & 810 \\
+\bottomrule
+\end{tabularx}
+
+Les quatre composants ont un paramètre de forme supérieur à 1 : leur taux de panne croît avec l'âge, et la maintenance préventive a donc un intérêt, ce que le cahier des charges demandait de vérifier (§\,3.2). Un modèle de Weibull à temps de vie accéléré précise l'effet des machines : chaque année d'âge réduit la durée de vie des composants d'environ 2~\%, et les modèles 2, 3 et 4 vivent respectivement 17, 46 et 48~\% plus longtemps que le modèle 1.
+
+\subsection{Validation du simulateur}\label{sec:validation}
+
+Pour valider le simulateur (objectif O2), nous rejouons la politique observée dans Azure : chaque remplacement planifié du journal est appliqué à sa date, machine par machine, du 1\textsuperscript{er} juin 2014 au 1\textsuperscript{er} janvier 2016, sur 100 machines fonctionnant 24 heures sur 24. Les pannes ne proviennent alors que des lois de Weibull.
+
+Avec les lois ajustées directement, le simulateur produit environ 30~\% de pannes de moins qu'Azure, de façon homogène sur les quatre composants. L'hypothèse de censure indépendante est donc en défaut : les remplacements planifiés d'Azure visent probablement des composants déjà usés, ce qui rend la censure informative et fait surestimer les durées de vie. Nous corrigeons l'échelle de chaque loi par simulation, sur le premier semestre 2015 seulement : le nombre de pannes variant à peu près comme $\eta^{-\beta}$, l'échelle est multipliée à chaque itération par le rapport des pannes simulées et observées, élevé à la puissance $1/\beta$. Les échelles corrigées valent 0,72 à 0,81 fois les échelles ajustées.
+
+\needspace{10\baselineskip}
+\begin{tabularx}{\linewidth}{@{}L R R R@{}}
+\caption{Écart entre pannes simulées et observées, moyenne sur 8 graines}\label{tab:validation}\\
+\toprule
+\hd{Composant} & \hd{Lois ajustées, 2\textsuperscript{e} semestre} & \hd{Lois corrigées, 2\textsuperscript{e} semestre} & \hd{Lois corrigées, année} \\
+\midrule
+comp1 & $-$25,0~\% & $+$18,2~\% & $+$7,9~\% \\
+comp2 & $-$30,6~\% & $-$14,3~\% & $-$4,3~\% \\
+comp3 & $-$33,7~\% & $-$2,0~\% & $-$3,7~\% \\
+comp4 & $-$29,6~\% & $+$6,4~\% & $+$6,4~\% \\
+\bottomrule
+\end{tabularx}
+
+Sur l'année 2015, l'écart reste inférieur à 10~\% pour chaque composant, ce qui satisfait le critère O2 ; ce résultat inclut toutefois le semestre de calibration. Sur le seul second semestre, que la correction n'a pas vu, deux composants s'écartent de 14 et 18~\%. Cet écart est du même ordre que la variabilité d'Azure elle-même : les pannes réelles de comp1 baissent de 22~\% d'un semestre à l'autre, et l'incertitude de Poisson sur 84 pannes atteint déjà 11~\%. Un critère de 10~\% par semestre est donc proche du bruit statistique des données.
+
+% ================================================================ 3
+\section{Simulateur}\label{sec:simulateur}
+
+Le simulateur suit l'architecture décrite au §\,5.1 du cahier des charges. Développé avec SimPy, il gère les pannes, interventions et livraisons comme des processus concurrents qui se partagent le stock et l'équipe de techniciens. Le vieillissement des 400 composants est suivi heure par heure de façon vectorisée. La production, les défauts, la télémétrie et les alarmes dépendent de l'usure, qui varie de moins de 1~\% par jour : leurs espérances sont évaluées par blocs de six heures, et juste avant chaque remplacement, puis les quantités sont tirées une fois par jour. Cette organisation conserve la loi des quantités journalières tout en ramenant la simulation d'une année à 1,1 à 1,4 seconde, sous l'exigence de 2 secondes du cahier des charges.
+
+Le simulateur enregistre pour chaque machine l'état hors service dominant de chaque journée et les heures d'arrêt pendant les heures d'ouverture, ce qui alimente les fiches machines de l'application. Il accepte des visites préventives groupées, au cours desquelles un technicien remplace plusieurs composants d'une même machine, comme le fait Azure. Une fenêtre glissante de 48 heures de télémétrie peut être activée pour les politiques prédictives ; elle est normalisée exactement comme les jeux d'apprentissage.
+
+Deux scénarios sont fournis : S1, la flotte hétérogène à deux familles demandée par l'encadrement, et S0, une flotte de machines identiques servant à la validation. Les paramètres de départ sont ceux du chapitre~4 du cahier des charges. La règle de mise en tension y est respectée : la politique P0 connaît environ 16~\% de ruptures et la politique optimisée P1 environ 1~\%, si bien qu'un stock abondant n'est pas une solution évidente.
+
+Le code est couvert par des tests automatiques : invariants du simulateur (stock jamais négatif, temps de marche inférieur au temps d'ouverture, reproductibilité à graine fixée), API, environnement d'apprentissage, modèles, et un parcours de bout en bout de l'application dans Microsoft Edge.
+
+% ================================================================ 4
+\section{Prédiction des pannes}\label{sec:prediction}
+
+\subsection{Jeux d'apprentissage}
+
+Chaque exemple décrit une machine au début d'une journée : une fenêtre de 48 heures des signaux, des attributs statiques et, pour chaque composant, une cible de survie en temps discret sur 14 jours, censurée par un remplacement préventif ou la fin de l'historique \cite{gensheimer}.
+
+\begin{itemize}
+\item \textbf{Données simulées} : cinq années de la flotte S1 sous la politique P0, soit 181\,000 exemples ; trois années servent à l'apprentissage, une à la validation et une au test. Seules 0,13~\% des machines-jours connaissent une panne dans les 24 heures.
+\item \textbf{Données réelles} : 36\,300 exemples tirés d'Azure, avec le nombre d'erreurs à la place de l'indicateur de marche et le temps écoulé depuis le dernier remplacement de chaque composant. Le découpage est temporel, comme le prévoit le protocole : janvier à août pour l'apprentissage, septembre et octobre pour la validation, novembre et décembre pour le test.
+\end{itemize}
+
+Un remplacement daté de l'instant de prédiction trahit une panne enregistrée au même instant : le temps écoulé depuis le dernier remplacement ne compte donc que les remplacements strictement antérieurs. Un test automatique vérifie l'absence de cette fuite.
+
+\subsection{Résultats}
+
+Les seuils de décision sont choisis sur la période de validation, les métriques sont mesurées sur le test. L'aire sous la courbe précision-rappel (PR-AUC) se compare à la proportion de pannes : 0,13~\% à 24 heures sur données simulées, 2,1~\% sur Azure.
+
+\begin{tabularx}{\linewidth}{@{}L R R R R@{}}
+\caption{Prédiction sur données simulées (année de test)}\label{tab:pred-sim}\\
+\toprule
+\hd{Modèle} & \hd{F1, 24 h} & \hd{PR-AUC, 24 h} & \hd{F1, 7 jours} & \hd{PR-AUC, 7 jours} \\
+\midrule
+LightGBM & 0,090 & 0,030 & 0,424 & 0,310 \\
+LSTM & 0,160 & 0,098 & 0,440 & 0,379 \\
+GRU & 0,154 & 0,098 & 0,445 & 0,405 \\
+TCN & 0,146 & 0,103 & 0,450 & 0,403 \\
+\bottomrule
+\end{tabularx}
+
+\begin{tabularx}{\linewidth}{@{}L R R R R@{}}
+\caption{Prédiction sur données réelles Azure (novembre et décembre 2015)}\label{tab:pred-azure}\\
+\toprule
+\hd{Modèle} & \hd{F1, 24 h} & \hd{PR-AUC, 24 h} & \hd{F1, 7 jours} & \hd{PR-AUC, 7 jours} \\
+\midrule
+LightGBM & 0,844 & 0,925 & 0,268 & 0,314 \\
+LSTM & 0,422 & 0,337 & 0,350 & 0,299 \\
+GRU & 0,573 & 0,561 & 0,361 & 0,324 \\
+TCN & 0,646 & 0,655 & 0,370 & 0,325 \\
+\bottomrule
+\end{tabularx}
+
+Sur données simulées, les réseaux de survie dépassent LightGBM aux deux horizons, le TCN et le GRU obtenant le meilleur classement à 7 jours. Sur Azure, LightGBM l'emporte nettement à 24 heures : les pannes de ce jeu synthétique sont précédées d'anomalies franches dans les dernières heures, que des moyennes glissantes sur 3 et 24 heures captent très bien. À 7 jours, horizon qui compte pour la gestion du stock, les réseaux reprennent l'avantage en F1 (0,37 contre 0,27). Le critère O3, qui demandait de dépasser LightGBM, est donc atteint sur données simulées et à 7 jours sur données réelles, mais pas à 24 heures sur données réelles.
+
+Le premier entraînement de LightGBM donnait un résultat dégénéré, voisin du hasard : avec moins de 200 pannes par composant et un poids des pannes proche de 1\,000, le modèle apprenait les exemples par cœur. Des arbres moins profonds, un poids plafonné et un sous-échantillonnage ont rétabli une référence équitable.
+
+% ================================================================ 5
+\section{Politiques de référence}\label{sec:references}
+
+\begin{itemize}
+\item \textbf{P0}, seuils fixes réglés à la main : stock en $(s,S)$ selon le scénario, maintenance systématique aux intervalles constructeur, une pièce de chaque référence réservée aux pannes.
+\item \textbf{P1}, seuils fixes optimisés : recherche aléatoire de 40 combinaisons des seuils $(s,S)$ et des facteurs d'intervalle de maintenance, évaluées sur les mêmes graines. Le coût annuel passe de 57\,600 à 53\,700 UR, les ruptures de 16 à 1~\%.
+\item \textbf{P2}, maintenance conditionnelle : remplacement lorsque le signal associé au composant dérive, lorsque le taux de défauts dépasse un seuil, ou à 1,5 fois l'intervalle.
+\item \textbf{P3}, politique prédictive sans apprentissage par renforcement : le réseau de survie qui classe le mieux les pannes à 7 jours estime le risque de chaque composant. Un composant est remplacé lorsque son risque de panne à 3 jours dépasse un seuil ou lorsqu'il atteint un multiple donné de son intervalle de maintenance, et le stock est recomplété jusqu'à la demande prévue sur le délai fournisseur, augmentée d'un stock de sécurité. Sans la seconde règle, P3 laissait vieillir les composants : le taux de défauts passait de 2,4 à 3,1~\% et le rebut coûtait 10\,000 UR de plus par an. Ses trois paramètres sont réglés sur une grille de 18 combinaisons, avec les graines de P1 : la grille retient un seuil de risque de 5~\%, un remplacement d'office à 1,5 fois l'intervalle et une marge de stock réduite à une pièce, pour un coût de 52\,900 UR sur ces graines.
+\item \textbf{Oracle} : remplace chaque composant à 70~\% de sa durée de vie réelle et commande les pièces dont il sait qu'elles serviront ; c'est une borne qu'aucune politique réaliste ne peut atteindre.
+\end{itemize}
+
+\input{chapitre_rl}
+
+% ================================================================ 7
+\section{Modèle de substitution et sensibilité}\label{sec:substitution}
+
+Le modèle de substitution est un ensemble de cinq réseaux \cite{ensembles} entraîné sur 2\,000 scénarios tirés en hypercube latin et simulés deux fois chacun sur 180 jours, soit 24 minutes de calcul. Ses entrées sont le nombre de techniciens, les facteurs de délai fournisseur et de taux de panne, et les facteurs d'intervalle de maintenance et de niveau de stock d'une politique à seuils fixes.
+
+\begin{tabularx}{\linewidth}{@{}L R R@{}}
+\caption{Qualité du modèle de substitution sur 20~\% de scénarios non vus}\\
+\toprule
+\hd{Indicateur} & \hd{$R^2$} & \hd{Erreur relative moyenne} \\
+\midrule
+Coût total & 0,982 & 2,1~\% \\
+TRS & 0,978 & 0,3~\% \\
+Disponibilité & 0,975 & 0,3~\% \\
+Fréquence de ruptures & 0,983 & non pertinente \\
+Attente de pièce & 0,913 & non pertinente \\
+Pannes & 0,983 & 3,2~\% \\
+\bottomrule
+\end{tabularx}
+
+Le critère O5 ($R^2$ supérieur à 0,9) est atteint pour chaque indicateur. L'erreur relative n'a pas de sens pour les ruptures et l'attente de pièce, souvent proches de zéro. Le modèle répond en quelques millisecondes, contre environ une seconde par scénario simulé : la page « Scénarios » de l'application l'interroge à chaque mouvement de curseur.
+
+Il permet aussi l'analyse de sensibilité globale prévue au §\,5.4, impossible à mener directement sur le simulateur : 14\,336 évaluations selon l'échantillonnage de Saltelli \cite{saltelli} donnent les indices de Sobol totaux de la figure~\ref{fig:sobol}.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[rapport, xbar, width=0.8\linewidth, height=6.4cm, bar width=4.5pt, xmin=0, xmax=0.8,
+  table/col sep=comma, ytick={0,...,4}, yticklabels from table={data/sobol.csv}{libelle},
+  enlarge y limits=0.15, xmajorgrids, ymajorgrids=false,
+  xticklabel style={/pgf/number format/.cd, use comma, fixed, precision=1},
+  xlabel={Indice de Sobol total},
+  legend style={at={(1,0.03)}, anchor=south east, fill=white, fill opacity=0.9, text opacity=1},
+  legend cell align=left, reverse legend,
+  legend image code/.code={\fill[#1] (0cm,-0.08cm) rectangle (0.32cm,0.1cm);}]
+\addplot[fill=gris!60, draw=none, mark=none] table[x=frequence_ruptures, y expr=\coordindex, col sep=comma] {data/sobol.csv};
+\addplot[fill=accent, draw=none, mark=none] table[x=trs, y expr=\coordindex, col sep=comma] {data/sobol.csv};
+\addplot[fill=primaire, draw=none, mark=none] table[x=cout_total, y expr=\coordindex, col sep=comma] {data/sobol.csv};
+\legend{Ruptures, TRS, Coût total}
+\end{axis}
+\end{tikzpicture}
+\caption{Sensibilité des indicateurs aux paramètres du système et de la politique.}
+\label{fig:sobol}
+\end{figure}
+
+Le taux de panne explique l'essentiel de la variance du coût. Le délai fournisseur et le niveau de stock dominent le TRS et les ruptures. Le nombre de techniciens n'a presque aucun effet, cohérent avec leur charge moyenne de 27~\% : l'équipe n'est pas le goulot d'étranglement du scénario nominal.
+
+\input{chapitre_evaluation}
+
+% ================================================================ 9
+\section{Application web}\label{sec:application}
+
+L'application se compose d'une interface React et d'une API FastAPI qui expose le moteur Python. Les outils de tableau de bord en Python ont été écartés au profit d'une interface conçue comme un produit : son système visuel (typographie Archivo et IBM Plex, palette violette, jaune et blanche, thème clair) est consigné dans un guide de style et suit le catalogue d'anti-modèles d'impeccable.style \cite{impeccable}. Elle compte sept pages.
+
+\begin{itemize}
+\item \textbf{Tableau de bord} : bilan d'une année simulée, évolution du TRS, coûts cumulés par poste, machines à l'arrêt.
+\item \textbf{Flotte en direct} : la simulation est diffusée jour après jour par WebSocket ; chaque machine est une case colorée selon son état, avec l'état du magasin, la file des techniciens et un journal d'événements rédigé en français.
+\item \textbf{Machines} et fiches machines : frise des états, télémétrie, taux de défauts, historique.
+\item \textbf{Stock} : niveau, commandes en cours et machines en attente pour chaque référence, avec les seuils de la politique.
+\item \textbf{Comparaison} : indicateurs de plusieurs politiques avec intervalles de confiance, nuage coût et TRS.
+\item \textbf{Scénarios} : réponse instantanée du modèle de substitution, vérifiable par simulation.
+\item \textbf{Données} : jeu Azure, lois de durée de vie, validation et qualité des modèles de prédiction.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/direct.png}
+\caption{Page « Flotte en direct » en cours de simulation.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/comparaison.png}
+\caption{Page « Comparaison » : indicateurs avec intervalles de confiance et nuage coût, TRS.}
+\end{figure}
+
+\input{chapitre_conclusion}
+
+% ================================================================ Annexe
+\appendix
+\section{Reproduire les résultats}\label{sec:reproduire}
+
+Prérequis : Python 3.11 avec uv, Node.js, les cinq fichiers CSV d'Azure dans \texttt{data/raw}.
+
+\begin{tabularx}{\linewidth}{@{}P{7.2cm} L@{}}
+\toprule
+\hd{Commande} & \hd{Résultat} \\
+\midrule
+\texttt{uv sync -{}-extra ml} & Installation des dépendances \\
+\texttt{uv run pytest} & Tests automatiques \\
+\texttt{scripts/calibrate\_azure.py} & Lois de Weibull (tableau~\ref{tab:weibull}) \\
+\texttt{scripts/validate\_azure.py} & Validation O2 (tableau~\ref{tab:validation}) \\
+\texttt{scripts/optimize\_p1.py} & Seuils de P1 \\
+\texttt{scripts/train\_predictor.py} & Tableau~\ref{tab:pred-sim} ; avec \texttt{-{}-source azure}, tableau~\ref{tab:pred-azure} \\
+\texttt{scripts/tune\_p3.py} & Seuils de P3 \\
+\texttt{scripts/train\_rl.py -{}-level n1} & Agent P4 ; \texttt{-{}-level n2} pour P5, prolongé avec \texttt{-{}-resume} \\
+\texttt{scripts/train\_bdq.py} & Branching Dueling Q-Network \\
+\texttt{scripts/train\_rl.py -{}-level reduced -{}-algo dqn} & DQN du niveau réduit \\
+\texttt{scripts/choose\_agent\_mode.py} & Mode de jeu de P4 et P5 \\
+\texttt{scripts/train\_surrogate.py} & Modèle de substitution \\
+\texttt{scripts/sensitivity.py} & Indices de Sobol (figure~\ref{fig:sobol}) \\
+\texttt{scripts/evaluate\_policies.py -{}-robustness} & Évaluation finale (section~\ref{sec:evaluation}) \\
+\texttt{scripts/export\_report\_data.py} & Données des graphiques de ce rapport \\
+\bottomrule
+\end{tabularx}
+
+% ================================================================ Références
+\begin{thebibliography}{99}
+\addcontentsline{toc}{section}{Références}
+\small
+\NoAutoSpacing
+\setlength{\itemsep}{0.15em}
+\bibitem{azure} Microsoft Azure Predictive Maintenance, jeu de données publié sur Kaggle, \url{https://www.kaggle.com/datasets/arnabbiswas1/microsoft-azure-predictive-maintenance}.
+\bibitem{gensheimer} M. F. Gensheimer et B. Narasimhan, «~A scalable discrete-time survival model for neural networks~», \emph{PeerJ}, 7:e6257, 2019.
+\bibitem{dqn} V. Mnih et al., «~Human-level control through deep reinforcement learning~», \emph{Nature}, 518, p.~529-533, 2015.
+\bibitem{ppo} J. Schulman et al., «~Proximal policy optimization algorithms~», arXiv:1707.06347, 2017.
+\bibitem{masking} S. Huang et S. Ontañón, «~A closer look at invalid action masking in policy gradient algorithms~», \emph{FLAIRS}, 2022.
+\bibitem{bdq} A. Tavakoli, F. Pardo et P. Kormushev, «~Action branching architectures for deep reinforcement learning~», \emph{AAAI}, 2018.
+\bibitem{ensembles} B. Lakshminarayanan, A. Pritzel et C. Blundell, «~Simple and scalable predictive uncertainty estimation using deep ensembles~», \emph{NeurIPS}, 2017.
+\bibitem{saltelli} A. Saltelli et al., \emph{Global Sensitivity Analysis: The Primer}, Wiley, 2008.
+\bibitem{sb3} A. Raffin et al., «~Stable-Baselines3: Reliable reinforcement learning implementations~», \emph{Journal of Machine Learning Research}, 22(268), 2021.
+\bibitem{impeccable} Impeccable, catalogue d'anti-modèles d'interface, \url{https://impeccable.style}.
+\end{thebibliography}
+
+\end{document}

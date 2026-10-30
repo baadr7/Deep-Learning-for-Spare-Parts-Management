@@ -78,7 +78,9 @@ export function Compare() {
   const [selected, setSelected] = useState<string[]>(["P0", "P1", "P2", "Oracle"]);
   const [replications, setReplications] = useState(5);
   const mutation = useMutation({
-    mutationFn: () => api.compare({ scenario, policies: selected, replications }),
+    // Colonnes dans l'ordre du catalogue, quel que soit l'ordre des clics.
+    mutationFn: () =>
+      api.compare({ scenario, policies: policies.map((p) => p.code).filter((c) => selected.includes(c)), replications }),
   });
   const data = mutation.data;
   const pareto = useMemo(() => (data ? paretoOption(data) : null), [data]);

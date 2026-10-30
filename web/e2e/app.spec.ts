@@ -29,7 +29,8 @@ test("une ligne du tableau des machines ouvre la fiche", async ({ page }) => {
 
 test("la comparaison produit un tableau d'indicateurs", async ({ page }) => {
   await page.goto("/comparaison");
-  await page.getByLabel("Réplications").fill("2");
+  // Trois réplications au moins : le champ refuse moins, l'intervalle de confiance n'aurait pas de sens.
+  await page.getByLabel("Réplications").fill("3");
   await page.getByRole("button", { name: "Comparer" }).click();
   await expect(page.getByRole("heading", { name: "Indicateurs" })).toBeVisible({ timeout: 60_000 });
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/e2e-compare.png`, fullPage: true });

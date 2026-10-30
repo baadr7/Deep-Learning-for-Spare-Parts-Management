@@ -6,7 +6,8 @@ Exemples :
   uv run python scripts/train_rl.py --level reduced --algo dqn
 
 Le modèle MaskablePPO est enregistré dans models/rl/p4_<scénario>.zip (niveau n1) ou
-p5_<scénario>.zip (niveau n2) ; les courbes d'apprentissage vont dans runs/rl (TensorBoard).
+p5_<scénario>.zip (niveau n2), le DQN dans dqn_<scénario>.zip ; les courbes d'apprentissage
+vont dans runs/rl (TensorBoard).
 """
 
 from __future__ import annotations
@@ -39,7 +40,16 @@ def main() -> None:
     parser.add_argument("--envs", type=int, default=8)
     parser.add_argument("--horizon", type=int, default=365)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--ent-coef",
+        type=float,
+        help="bonus d'entropie de PPO (par défaut 0,01, et 0 au niveau n2)",
+    )
     parser.add_argument("--output", help="chemin du modèle (par défaut models/rl/...)")
+    parser.add_argument(
+        "--resume",
+        help="modèle MaskablePPO à prolonger ; --timesteps compte alors les pas supplémentaires",
+    )
     args = parser.parse_args()
 
     from sb3_contrib import MaskablePPO
@@ -51,10 +61,28 @@ def main() -> None:
         for i in range(args.envs)
     ]
     vec = SubprocVecEnv(factories) if args.envs > 1 else DummyVecEnv(factories)
+    if args.algo == "maskable_ppo":
+        from stable_baselines3.common.vec_env import VecNormalize
+
+        # Sans normalisation, le critique de PPO n'apprenait rien (variance expliquée nulle aux
+        # niveaux N1 et N2) : les retours, de l'ordre de -200, varient fortement d'une année à
+        # l'autre. La normalisation des récompenses ramène ses cibles vers l'unité ; les
+        # observations restent inchangées, si bien que l'agent s'exécute ensuite sans ce wrapper.
+        vec = VecNormalize(vec, norm_obs=False, norm_reward=True, gamma=0.995)
     log_dir = ROOT / "runs" / "rl"
     common = {"verbose": 1, "seed": args.seed, "tensorboard_log": str(log_dir), "device": "cpu"}
 
-    if args.algo == "dqn":
+    # Au niveau N2, le bonus d'entropie se somme sur 108 dimensions et ramène l'agent vers des
+    # actions uniformes, à l'opposé du biais initial : l'agent se dégradait au fil des mises à jour.
+    ent_coef = args.ent_coef if args.ent_coef is not None else (0.0 if args.level == "n2" else 0.01)
+
+    if args.resume:
+        if args.algo != "maskable_ppo":
+            raise SystemExit("--resume ne s'applique qu'à MaskablePPO")
+        # Réglages, poids et compteur de pas viennent du modèle enregistré ; la normalisation des
+        # récompenses, qui n'y figure pas, se réestime en quelques mises à jour.
+        model = MaskablePPO.load(args.resume, env=vec, device="cpu", tensorboard_log=str(log_dir))
+    elif args.algo == "dqn":
         if args.level != "reduced":
             raise SystemExit("le DQN classique ne s'applique qu'au niveau « reduced »")
         model = DQN("MlpPolicy", vec, learning_rate=3e-4, buffer_size=200_000, **common)
@@ -68,30 +96,84 @@ def main() -> None:
             "MlpLstmPolicy", vec, n_steps=365, batch_size=730, gamma=0.995, **common
         )
     else:
+        # Au niveau N2, la loi masquée de sb3-contrib coûte 80 ms par décision ; la version
+        # vectorisée donne les mêmes probabilités cinquante fois plus vite.
+        from spareparts.rl.padded import PaddedMaskablePolicy
+
         model = MaskablePPO(
-            "MlpPolicy",
+            PaddedMaskablePolicy if args.level == "n2" else "MlpPolicy",
             vec,
             n_steps=365,
             batch_size=730,
             learning_rate=3e-4,
             gamma=0.995,
-            ent_coef=0.01,
+            ent_coef=ent_coef,
             **common,
         )
 
-    run_name = f"{args.algo}_{args.level}_{args.scenario}_s{args.seed}"
-    model.learn(total_timesteps=args.timesteps, tb_log_name=run_name, progress_bar=False)
+    if args.level == "n2" and args.algo == "maskable_ppo" and not args.resume:
+        import torch
+
+        from spareparts.envs.codecs import inaction_prior
+
+        # Point de départ raisonnable : l'acteur commence par ne presque rien faire.
+        prior = inaction_prior(FleetEnv(scenario=args.scenario, level="n2").codec)
+        with torch.no_grad():
+            model.policy.action_net.bias.add_(torch.as_tensor(prior, dtype=torch.float32))
 
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    run_name = f"{args.algo}_{args.level}_{args.scenario}_s{args.seed}"
     if args.output:
         path = Path(args.output)
     elif args.algo == "maskable_ppo" and args.level in ("n1", "n2"):
         code = "p4" if args.level == "n1" else "p5"
         path = MODEL_DIR / f"{code}_{args.scenario}.zip"
+    elif args.algo == "dqn":
+        path = MODEL_DIR / f"dqn_{args.scenario}.zip"
     else:
         path = MODEL_DIR / f"{run_name}.zip"
-    model.save(path)
+
+    # L'apprentissage peut progresser puis se dégrader : on garde le modèle dont la moyenne des
+    # derniers épisodes d'apprentissage est la meilleure plutôt que le dernier.
+    keep_best = best_model_saver(path) if args.algo == "maskable_ppo" else None
+    model.learn(
+        total_timesteps=args.timesteps,
+        tb_log_name=run_name,
+        progress_bar=False,
+        callback=keep_best,
+        # Un apprentissage prolongé continue la même courbe dans TensorBoard.
+        reset_num_timesteps=not args.resume,
+    )
+    if keep_best and keep_best.saved:
+        print(f"meilleur coût annuel moyen : {-keep_best.best * 150:.0f} UR")
+    else:
+        model.save(path)
     print(f"modèle enregistré dans {path}")
+
+
+def best_model_saver(path: Path):
+    """Rappel qui enregistre le modèle chaque fois que la moyenne des épisodes s'améliore."""
+    import numpy as np
+    from stable_baselines3.common.callbacks import BaseCallback
+
+    class _KeepBest(BaseCallback):
+        def __init__(self):
+            super().__init__()
+            self.best, self.saved = -np.inf, False
+
+        def _on_step(self) -> bool:
+            return True
+
+        def _on_rollout_end(self) -> None:
+            episodes = self.model.ep_info_buffer
+            if len(episodes) < 30:
+                return
+            mean = float(np.mean([e["r"] for e in episodes]))
+            if mean > self.best:
+                self.best, self.saved = mean, True
+                self.model.save(path)
+
+    return _KeepBest()
 
 
 if __name__ == "__main__":

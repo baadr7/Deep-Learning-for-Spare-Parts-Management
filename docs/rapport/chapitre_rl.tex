@@ -1,0 +1,87 @@
+% ================================================================ 6
+\section{Apprentissage par renforcement}\label{sec:rl}
+
+\subsection{Formulation}
+
+L'agent décide une fois par jour, au début de la journée, à partir de l'état observable de la flotte. Un épisode couvre une année, soit 365 décisions, et chaque épisode tire une nouvelle graine du simulateur : l'agent ne revoit jamais deux fois la même suite de pannes. La récompense d'une journée est l'opposé de son coût total, qui regroupe les huit postes du cahier des charges (stockage, achats, urgences, main-d'œuvre, surcoût correctif, arrêts, rebut et retouche), divisé par 150 pour ramener les récompenses vers l'unité. Maximiser la somme des récompenses revient donc exactement à minimiser le coût annuel, sans pondération arbitraire entre coût et disponibilité : les arrêts sont valorisés par la marge perdue.
+
+L'observation ne contient que des grandeurs connues d'un responsable de maintenance réel : stock, commandes en cours et machines en attente pour chaque référence, avancement de chaque composant par rapport à son intervalle de maintenance (moyenne, maximum et part des composants au-delà de 80 et 100~\%), part des machines en service, en attente de pièce ou de technicien, techniciens libres, taux de défauts et alarmes des dernières 24 heures, avancement de l'année. Les durées de vie réelles des composants restent cachées. Toutes les grandeurs sont normalisées par des valeurs de référence du scénario, ce qui donne 39 variables.
+
+\subsection{Trois niveaux d'action}
+
+Le cahier des charges prévoyait deux niveaux d'action (§\,5.3). Un troisième, plus simple, a été ajouté pour pouvoir appliquer un DQN classique, qui ne sait traiter qu'un petit nombre d'actions discrètes.
+
+\begin{tabularx}{\linewidth}{@{}P{2.3cm} L P{3.6cm}@{}}
+\caption{Niveaux d'action proposés aux agents}\label{tab:niveaux}\\
+\toprule
+\hd{Niveau} & \hd{Décision quotidienne} & \hd{Taille de l'espace} \\
+\midrule
+Réduit & Un seuil de maintenance commun à tous les composants et un multiplicateur de stock commun à toutes les références, chacun parmi six valeurs & 36 actions \\
+N1 & Un seuil de maintenance par composant (0,6 à 1,5 fois l'intervalle, ou jamais) et un niveau de recomplètement par référence (0,5 à 3 fois le niveau de référence) & $6^8 \approx 1{,}7$ million de combinaisons \\
+N2 & Quantité commandée et commande urgente pour chaque référence, et pour chaque machine : ne rien faire ou remplacer l'un de ses quatre composants & plus de $10^{76}$ combinaisons \\
+\bottomrule
+\end{tabularx}
+
+Au niveau N1, l'agent règle chaque jour les paramètres d'une politique à seuils, que le simulateur applique ensuite. Ce niveau reste lisible pour un responsable de maintenance : il voit à tout moment quels seuils l'agent a retenus. Au niveau N2, l'agent prend lui-même chaque décision. Les actions impossibles ou absurdes y sont masquées : maintenance d'une machine déjà arrêtée, d'un composant dont la pièce manque ou qui n'a pas atteint la moitié de son intervalle, ou alors qu'aucun technicien n'est libre. Pour ce niveau, l'observation est complétée, pour chaque machine, par son état et l'avancement de ses quatre composants, soit 539 variables.
+
+\subsection{Algorithmes}
+
+\intertitre{MaskablePPO pour P4 et P5}
+PPO \cite{ppo} est un algorithme acteur-critique robuste aux espaces d'actions discrets multiples. Sa variante MaskablePPO de la bibliothèque sb3-contrib \cite{sb3} exclut les actions invalides de la distribution de l'acteur, ce qui accélère nettement l'apprentissage par rapport à une pénalité \cite{masking}. Les deux agents partagent leurs réglages : trois environnements en parallèle, 365 pas par environnement entre deux mises à jour, lots de 730 transitions, taux d'apprentissage $3\times10^{-4}$, facteur d'actualisation 0,995 (horizon effectif de 200 jours, du même ordre que les délais et les durées de vie). P4 dispose de 300\,000 pas, soit environ 820 années simulées, et d'un coefficient d'entropie de 0,01 ; P5 de 500\,000 pas en deux temps, 200\,000 puis 300\,000 à partir du meilleur modèle du premier passage, sans bonus d'entropie. Ces choix, ainsi que la normalisation des récompenses et la conservation du meilleur modèle, sont justifiés plus bas. Au niveau N2, la loi masquée de sb3-contrib traite les 108 dimensions de l'action une à une et coûtait 77~ms par décision, quinze fois le temps de simulation d'une journée ; une version vectorisée, dont un test vérifie qu'elle donne les mêmes probabilités, ramène ce temps à 1,5~ms.
+
+\intertitre{DQN au niveau réduit}
+Le DQN \cite{dqn} de Stable-Baselines3 sert de référence : réseau de deux couches de 64 neurones, mémoire de 200\,000 transitions, exploration $\varepsilon$ décroissante sur les 10 premiers pourcents de l'apprentissage, 100\,000 pas.
+
+\intertitre{Branching Dueling Q-Network}
+Un DQN classique estime une valeur par action ; au niveau N2, il devrait en estimer plus de $10^{76}$. L'architecture à branches de Tavakoli et al. \cite{bdq} contourne cette explosion : un tronc commun de deux couches de 256 neurones alimente une valeur d'état et, pour chaque dimension de l'action, une tête d'avantages. Le nombre de sorties croît alors avec la somme des tailles des dimensions (près de 600) et non avec leur produit. La cible d'apprentissage suit le double DQN, en moyenne sur les branches, et les actions invalides sont masquées dans chaque branche. Ce réseau, absent des bibliothèques courantes, a été écrit directement avec PyTorch ; les sorties de toutes les branches sont rangées dans un même tableau pour éviter une boucle sur la centaine de branches. L'apprentissage dure 120\,000 pas, avec une mise à jour tous les quatre pas sur des lots de 64 transitions, une mémoire de 100\,000 transitions, un taux d'apprentissage de $10^{-4}$ et une exploration $\varepsilon$ qui décroît de 1 à 0,05 sur les 30 premiers pourcents.
+
+\intertitre{Point de départ des agents N2}
+Un agent non entraîné choisit presque uniformément entre les options de chaque dimension : au niveau N2, il commande chaque jour des quantités aléatoires et envoie en maintenance quatre machines sur cinq. Ces premières années coûtent plus de 600\,000 UR, dix fois le coût normal, et la multitude d'interventions ralentit la simulation au point de ramener l'apprentissage à une vingtaine de pas par seconde. Nous ajoutons donc, avant apprentissage, un biais aux sorties des deux agents N2 qui rend l'option « ne rien faire » largement majoritaire ; l'exploration du BDQ tire ses actions aléatoires selon ce même biais. L'agent part ainsi d'une politique prudente et apprend quand s'en écarter, ce qui ne restreint aucune décision. Un premier apprentissage de P5 avec le bonus d'entropie habituel s'est d'abord amélioré, jusqu'à 86\,000 UR par an après 14\,000 pas, puis dégradé jusqu'à 106\,000 UR après 54\,000 pas : sommé sur 108 dimensions, ce bonus pousse l'acteur vers des choix uniformes, c'est-à-dire précisément vers les années absurdes que le biais initial écarte. Il a donc été supprimé au niveau N2.
+
+\intertitre{Normalisation des récompenses}
+Sans le bonus d'entropie, la même dérive de P5 est apparue plus lentement. Le premier apprentissage de P4, mené sans précaution particulière, montrait un symptôme voisin : le coût moyen des épisodes est passé de 53\,800 à 53\,400 UR en 300\,000 pas, autant dire qu'il n'a pas bougé. Dans les deux cas, la variance des retours expliquée par le critique restait nulle, si bien que les avantages estimés n'étaient guère que du bruit. Les retours, de l'ordre de $-200$, varient beaucoup d'une année à l'autre ; les récompenses sont donc divisées par l'écart-type courant des retours, ce qui ramène les cibles du critique vers l'unité. La variance expliquée est alors passée à plus de 0,5 dès les premières mises à jour. Les deux agents ont été réentraînés ainsi, et le modèle conservé est celui dont la moyenne des derniers épisodes d'apprentissage est la meilleure, et non le dernier.
+
+\subsection{Courbes d'apprentissage}
+
+La figure~\ref{fig:apprentissage} suit le coût annuel moyen des derniers épisodes au fil de l'apprentissage. Ces épisodes sont joués avec la politique stochastique de l'agent, ou avec son exploration pour les deux DQN, et sur des graines chaque fois nouvelles : la courbe mesure la progression, pas la performance finale, que la section~\ref{sec:evaluation} évalue sur des années communes à toutes les politiques.
+
+\begin{figure}[H]
+\centering
+\pgfplotsset{courbe/.style={rapport, width=\linewidth, height=6cm,
+  xlabel={Pas d'apprentissage (milliers)},
+  x filter/.expression={x/1000}, y filter/.expression={y/1000}, xmin=0,
+  xticklabel style={/pgf/number format/.cd, use comma, fixed, precision=0},
+  yticklabel style={/pgf/number format/.cd, use comma, fixed, precision=0},
+  legend style={at={(1,1)}, anchor=north east, fill=white, fill opacity=0.9, text opacity=1},
+  legend cell align=left}}
+\begin{minipage}[t]{0.49\linewidth}
+\begin{tikzpicture}
+\begin{axis}[courbe, xmax=300, ymin=50, ymax=62, ylabel={Coût annuel moyen (milliers d'UR)},
+  title={\sffamily\footnotesize Niveaux réduit et N1}]
+\addplot[primaire, thick, mark=none] table[x=pas, y=cout_annuel, col sep=comma] {data/courbe_maskable_ppo_n1_s1_nominal_s0_1.csv};
+\addplot[primaire!45, mark=none, densely dashed] table[x=pas, y=cout_annuel, col sep=comma] {data/courbe_maskable_ppo_n1_sans_normalisation.csv};
+\addplot[gris, mark=none] table[x=pas, y=cout_annuel, col sep=comma] {data/courbe_dqn_reduced_s1_nominal_s0_1.csv};
+\addplot[gris!70, mark=none, densely dotted, domain=0:300000] {52136};
+\legend{P4, P4 sans normalisation, DQN, P1 (évaluation)}
+\end{axis}
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.49\linewidth}
+\begin{tikzpicture}
+\begin{axis}[courbe, xmax=500, ymin=40, ymax=140,
+  title={\sffamily\footnotesize Niveau N2}]
+\addplot[accent, thick, mark=none] table[x=pas, y=cout_annuel, col sep=comma] {data/courbe_maskable_ppo_n2_s1_nominal_s0_1.csv};
+\addplot[accent!60, mark=none, densely dashed] table[x=pas, y=cout_annuel, col sep=comma] {data/courbe_bdq.csv};
+\addplot[gris!70, mark=none, densely dotted, domain=0:500000] {52136};
+\legend{P5, BDQ, P1 (évaluation)}
+\end{axis}
+\end{tikzpicture}
+\end{minipage}
+\caption{Coût annuel moyen des épisodes d'apprentissage : moyenne glissante des 100 derniers épisodes pour PPO et DQN, des 20 derniers pour le BDQ. Le pointillé rappelle le coût de P1 mesuré lors de l'évaluation finale.}
+\label{fig:apprentissage}
+\end{figure}
+
+Une fois les récompenses normalisées, les deux agents PPO progressent nettement. P4 passe de 54\,500 à 51\,800 UR sur ses épisodes d'apprentissage, quand sa première version restait autour de 53\,500 UR. P5 part de 107\,000 UR et descend à 62\,500 UR en 200\,000 pas. Comme sa courbe baissait encore, l'apprentissage a été prolongé de 300\,000 pas à partir de ce modèle : P5 atteint 58\,200 UR, puis plafonne autour de 59\,000 UR sur les 100\,000 derniers pas. La durée d'apprentissage n'est donc plus ce qui le limite. Le BDQ progresse tant qu'il explore, jusqu'à 83\,500 UR, puis se dégrade lorsque l'exploration s'éteint : les valeurs de ses 108 branches sont apprises sur une récompense commune à toute la flotte, et l'effet d'une décision isolée, comme l'entretien d'une machine, se perd dans le bruit des pannes des 99 autres. Le DQN, enfin, n'améliore jamais la politique aléatoire dont il part, autour de 56\,000 UR : un seuil commun à tous les composants et un niveau de stock commun à toutes les références ne laissent guère de marge.
+
+\intertitre{Jouer l'action la plus probable ou tirer les actions}
+Une politique PPO est une loi de probabilité sur les actions. L'usage veut qu'on l'évalue en jouant son mode, l'action la plus probable de chaque dimension, mais ce mode peut s'écarter beaucoup de la politique apprise. Au niveau N2, « ne rien commander » reste l'option la plus probable de chaque référence : l'agent apprend à commander certains jours seulement, et son mode ne commande jamais. Joué ainsi, P5 coûte 432\,500 UR par an sur les graines de réglage, contre 61\,800 UR en tirant ses actions. Pour chaque agent PPO, le mode de jeu est donc choisi sur les graines de réglage de P1 et P3, jamais sur celles de l'évaluation finale, et le tirage est initialisé par la graine de la simulation pour rester reproductible. Le tirage l'emporte pour les deux agents, nettement pour P5 et de 1\,700 UR pour P4.

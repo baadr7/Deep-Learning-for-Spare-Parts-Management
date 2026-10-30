@@ -18,10 +18,12 @@ from spareparts.policies import TUNED_DIR, _predictor_path
 from spareparts.policies.predictive import PredictivePolicy
 from spareparts.sim import FleetSimulation
 
+# Grille élargie après un premier passage dont l'optimum touchait les bornes
+# (seuil 0,05 ; facteur d'âge 1,5 ; marge 0,5).
 GRID = {
-    "pm_threshold": [0.05, 0.1, 0.2],
-    "age_factor": [1.0, 1.2, 1.5],
-    "z": [0.5, 1.0, 1.65],
+    "pm_threshold": [0.02, 0.05, 0.1],
+    "age_factor": [1.5, 2.0, 3.0],
+    "z": [0.0, 0.5],
 }
 
 

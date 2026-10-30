@@ -48,5 +48,7 @@ export const POLICY_COLORS: Record<string, string> = {
   P3: PALETTE.sun,
   P4: PALETTE.plum,
   P5: PALETTE.plumDark,
+  DQN: PALETTE.inkSoft,
+  BDQ: PALETTE.sunText,
   Oracle: PALETTE.ink,
 };

@@ -16,6 +16,7 @@ import numpy as np
 import torch
 from torch import nn
 
+from spareparts.envs.codecs import inaction_prior
 from spareparts.policies.base import Policy
 from spareparts.sim.engine import Decisions, FleetSimulation, Observation
 
@@ -29,21 +30,27 @@ class BranchingQNet(nn.Module):
             nn.Linear(obs_size, hidden), nn.ReLU(), nn.Linear(hidden, hidden), nn.ReLU()
         )
         self.value = nn.Linear(hidden, 1)
-        # Toutes les têtes d'avantages dans une seule couche, découpée par branche.
+        # Toutes les têtes d'avantages dans une seule couche. Les sorties sont rangées dans un
+        # tableau branches × options complété par des options fictives, ce qui évite une boucle
+        # Python sur la centaine de branches à chaque passage.
         self.advantage = nn.Linear(hidden, int(self.offsets[-1]))
-
-    def forward(self, obs: torch.Tensor, masks: torch.Tensor) -> list[torch.Tensor]:
-        h = self.trunk(obs)
-        v = self.value(h)
-        adv = self.advantage(h)
-        out = []
+        width = max(self.sizes)
+        index = np.zeros((len(self.sizes), width), dtype=np.int64)
+        valid = np.zeros((len(self.sizes), width), dtype=bool)
         for d, size in enumerate(self.sizes):
-            a = adv[:, self.offsets[d] : self.offsets[d] + size]
-            m = masks[:, self.offsets[d] : self.offsets[d] + size]
-            mean = (a * m).sum(dim=1, keepdim=True) / m.sum(dim=1, keepdim=True).clamp(min=1)
-            q = v + a - mean
-            out.append(q.masked_fill(~m, -1e9))
-        return out
+            index[d, :size] = self.offsets[d] + np.arange(size)
+            valid[d, :size] = True
+        self.register_buffer("index", torch.from_numpy(index), persistent=False)
+        self.register_buffer("valid", torch.from_numpy(valid), persistent=False)
+
+    def forward(self, obs: torch.Tensor, masks: torch.Tensor) -> torch.Tensor:
+        """Valeurs Q de forme (lot, branches, options) ; -1e9 pour une option invalide."""
+        h = self.trunk(obs)
+        v = self.value(h)[:, :, None]
+        adv = self.advantage(h)[:, self.index]
+        m = masks[:, self.index] & self.valid
+        mean = (adv * m).sum(dim=2, keepdim=True) / m.sum(dim=2, keepdim=True).clamp(min=1)
+        return (v + adv - mean).masked_fill(~m, -1e9)
 
 
 @dataclass
@@ -54,6 +61,9 @@ class BDQConfig:
     lr: float = 1e-4
     gamma: float = 0.99
     learning_starts: int = 2_000
+    # Une mise à jour tous les quatre pas, comme le DQN de référence : chaque pas coûte une
+    # journée de simulation, et une mise à jour par pas ralentissait l'apprentissage d'autant.
+    train_every: int = 4
     target_every: int = 1_000
     eps_start: float = 1.0
     eps_end: float = 0.05
@@ -90,18 +100,25 @@ class _Replay:
         )
 
 
-def greedy(qs: list[torch.Tensor]) -> np.ndarray:
-    return torch.stack([q.argmax(dim=1) for q in qs], dim=1).numpy()
+def greedy(q: torch.Tensor) -> np.ndarray:
+    return q.argmax(dim=2).numpy()
 
 
-def train_bdq(env, cfg: BDQConfig, log=print) -> BranchingQNet:
+def train_bdq(env, cfg: BDQConfig, log=print, history: list | None = None) -> BranchingQNet:
+    """Entraîne le réseau ; ``history`` reçoit, si fourni, le pas et le coût de chaque épisode."""
     torch.manual_seed(cfg.seed)
     rng = np.random.default_rng(cfg.seed)
     sizes = env.action_space.nvec
     obs_size = env.observation_space.shape[0]
     net = BranchingQNet(obs_size, sizes)
+    # Même point de départ que P5 : l'option « ne rien faire » domine avant apprentissage, et
+    # l'exploration aléatoire tire les options selon ce même biais plutôt qu'uniformément.
+    prior = inaction_prior(env.codec)
+    with torch.no_grad():
+        net.advantage.bias.add_(torch.as_tensor(prior, dtype=torch.float32))
     target = BranchingQNet(obs_size, sizes)
     target.load_state_dict(net.state_dict())
+    index, valid = net.index.numpy(), net.valid.numpy()
     opt = torch.optim.Adam(net.parameters(), lr=cfg.lr)
     replay = _Replay(cfg.buffer_size, obs_size, len(sizes), int(sizes.sum()))
 
@@ -112,13 +129,13 @@ def train_bdq(env, cfg: BDQConfig, log=print) -> BranchingQNet:
         frac = min(1.0, step / (cfg.eps_fraction * cfg.total_steps))
         eps = cfg.eps_start + frac * (cfg.eps_end - cfg.eps_start)
         with torch.no_grad():
-            qs = net(torch.from_numpy(obs)[None], torch.from_numpy(masks)[None])
-        action = greedy(qs)[0]
-        offsets = net.offsets
-        for d in range(len(sizes)):
-            if rng.random() < eps:
-                allowed = np.flatnonzero(masks[offsets[d] : offsets[d + 1]])
-                action[d] = rng.choice(allowed)
+            action = greedy(net(torch.from_numpy(obs)[None], torch.from_numpy(masks)[None]))[0]
+        # Exploration branche par branche : tirage selon le biais initial, par l'astuce de
+        # Gumbel (l'argmax du logit bruité suit la loi softmax des logits).
+        allowed = masks[index] & valid
+        logits = np.where(allowed, prior[index], -np.inf) + rng.gumbel(size=index.shape)
+        explore = rng.random(len(sizes)) < eps
+        action = np.where(explore, logits.argmax(axis=1), action)
         next_obs, reward, terminated, truncated, info = env.step(action)
         next_masks = env.action_masks()
         replay.add(obs, action, reward, next_obs, float(terminated), next_masks)
@@ -127,27 +144,19 @@ def train_bdq(env, cfg: BDQConfig, log=print) -> BranchingQNet:
         if terminated or truncated:
             episodes += 1
             log(f"BDQ épisode {episodes:3d}  pas {step + 1:7d}  coût {episode_cost:9.0f}")
+            if history is not None:
+                history.append((step + 1, episode_cost))
             obs, _ = env.reset()
             masks = env.action_masks()
             episode_cost = 0.0
 
-        if step >= cfg.learning_starts:
+        if step >= cfg.learning_starts and step % cfg.train_every == 0:
             o, a, r, o2, d, m2 = (torch.from_numpy(x) for x in replay.sample(cfg.batch_size, rng))
             ones = torch.ones(len(o), int(sizes.sum()), dtype=torch.bool)
-            q = net(o, ones)
-            q_taken = torch.stack(
-                [q[i].gather(1, a[:, i : i + 1]).squeeze(1) for i in range(len(q))], 1
-            )
+            q_taken = net(o, ones).gather(2, a[:, :, None]).squeeze(2)
             with torch.no_grad():
-                best = net(o2, m2)
-                tq = target(o2, m2)
-                next_v = torch.stack(
-                    [
-                        tq[i].gather(1, best[i].argmax(1, keepdim=True)).squeeze(1)
-                        for i in range(len(tq))
-                    ],
-                    1,
-                ).mean(dim=1)
+                best = net(o2, m2).argmax(dim=2, keepdim=True)
+                next_v = target(o2, m2).gather(2, best).squeeze(2).mean(dim=1)
                 y = r + cfg.gamma * (1 - d) * next_v
             loss = ((q_taken - y[:, None]) ** 2).mean()
             opt.zero_grad()
@@ -156,6 +165,17 @@ def train_bdq(env, cfg: BDQConfig, log=print) -> BranchingQNet:
             opt.step()
             if step % cfg.target_every == 0:
                 target.load_state_dict(net.state_dict())
+    return net
+
+
+def save_bdq(net: BranchingQNet, obs_size: int, path) -> None:
+    torch.save({"state": net.state_dict(), "sizes": net.sizes, "obs": obs_size}, path)
+
+
+def load_bdq(path) -> BranchingQNet:
+    blob = torch.load(path, map_location="cpu")
+    net = BranchingQNet(blob["obs"], np.array(blob["sizes"]))
+    net.load_state_dict(blob["state"])
     return net
 
 

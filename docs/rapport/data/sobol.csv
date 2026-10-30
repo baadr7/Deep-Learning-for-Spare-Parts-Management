@@ -1,0 +1,6 @@
+parametre,libelle,cout_total,trs,frequence_ruptures
+technicians,Techniciens,0.009,0.009,0.083
+pm_factor,Intervalle de maintenance,0.029,0.036,0.174
+stock_factor,Niveau de stock,0.163,0.304,0.537
+lead_time_factor,Délai fournisseur,0.229,0.429,0.303
+failure_rate_factor,Taux de panne,0.676,0.375,0.038
