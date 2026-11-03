@@ -76,7 +76,7 @@ Données Azure ──▶ calibration des lois de durée de vie ──▶ simulat
                            ▼                                         ▼                          ▼
               modèles de prédiction (GRU/TCN/LSTM)      politiques (P0…P5, DQN, BDQ)      plan d'expériences
                            │                                         │                          │
-                           └──────────────▶ évaluation comparative ◀─┘                          │
+                           └──────────────▶ évaluation comparative ◀┘                          │
                                           (Wilcoxon, TOST ±2 %, IC)                             │
                                                      │                                          ▼
                                                      │                            modèle de substitution + Sobol
