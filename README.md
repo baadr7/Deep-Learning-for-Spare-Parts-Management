@@ -27,20 +27,24 @@ permet l'analyse de sensibilité de Sobol, et une application web restitue l'ens
 
 ## Sommaire
 
-1. [Contexte et objectifs](#1-contexte-et-objectifs)
-2. [Démarche](#2-démarche)
-3. [Organisation du dépôt](#3-organisation-du-dépôt)
-4. [Installation](#4-installation)
-5. [Données](#5-données)
-6. [Lancement](#6-lancement)
-7. [Application web](#7-application-web)
-8. [Reproduire les résultats](#8-reproduire-les-résultats)
-9. [Tests et intégration continue](#9-tests-et-intégration-continue)
-10. [Suivi des expériences](#10-suivi-des-expériences)
-11. [Graines aléatoires](#11-graines-aléatoires)
-12. [Résultats de référence](#12-résultats-de-référence)
-13. [Rapport et documentation](#13-rapport-et-documentation)
-14. [Citation et licence](#14-citation-et-licence)
+- [Deep Learning for Spare Parts Management](#deep-learning-for-spare-parts-management)
+  - [Résumé](#résumé)
+  - [Sommaire](#sommaire)
+  - [1. Contexte et objectifs](#1-contexte-et-objectifs)
+  - [2. Démarche](#2-démarche)
+  - [3. Organisation du dépôt](#3-organisation-du-dépôt)
+  - [4. Installation](#4-installation)
+  - [5. Données](#5-données)
+  - [6. Lancement](#6-lancement)
+  - [7. Application web](#7-application-web)
+  - [8. Reproduire les résultats](#8-reproduire-les-résultats)
+    - [Référence des scripts](#référence-des-scripts)
+  - [9. Tests et intégration continue](#9-tests-et-intégration-continue)
+  - [10. Suivi des expériences](#10-suivi-des-expériences)
+  - [11. Graines aléatoires](#11-graines-aléatoires)
+  - [12. Résultats de référence](#12-résultats-de-référence)
+  - [13. Rapport et documentation](#13-rapport-et-documentation)
+  - [14. Citation et licence](#14-citation-et-licence)
 
 ---
 
@@ -73,8 +77,8 @@ Données Azure ──▶ calibration des lois de durée de vie ──▶ simulat
               modèles de prédiction (GRU/TCN/LSTM)      politiques (P0…P5, DQN, BDQ)      plan d'expériences
                            │                                         │                          │
                            └──────────────▶ évaluation comparative ◀─┘                          │
-                                          (Wilcoxon, TOST ±2 %, IC)                              │
-                                                     │                                           ▼
+                                          (Wilcoxon, TOST ±2 %, IC)                             │
+                                                     │                                          ▼
                                                      │                            modèle de substitution + Sobol
                                                      ▼
                                             application web (FastAPI + React)
