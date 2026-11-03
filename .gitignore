@@ -15,6 +15,9 @@ data/processed/*
 !data/**/.gitkeep
 models/*
 !models/.gitkeep
+# Le modèle de substitution est versionné : il est léger et la tâche « Bout en bout » de
+# l'intégration continue le charge pour vérifier la page « Scénarios ».
+!models/surrogate/
 runs/
 mlruns/
 mlflow.db
