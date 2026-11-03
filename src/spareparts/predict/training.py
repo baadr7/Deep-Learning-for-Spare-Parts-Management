@@ -7,8 +7,32 @@ import numpy as np
 from spareparts.predict.dataset import HORIZON, PredictionData, tabular_features
 
 
+def classification_curve(y_true: np.ndarray, score: np.ndarray, bins: int = 10):
+    """Courbe de fiabilité probabiliste : probabilité prédite contre fréquence observée.
+
+    Chaque tranche regroupe les exemples dont la probabilité prédite tombe dans un intervalle de
+    largeur égale. Un modèle calibré place ses points sur la diagonale. Renvoie les points
+    ``[proba moyenne, fréquence observée, effectif]`` et l'erreur de calibration attendue (ECE),
+    moyenne des écarts pondérée par l'effectif de chaque tranche.
+    """
+    y = y_true.ravel().astype(int)
+    s = np.clip(score.ravel(), 0.0, 1.0)
+    edges = np.linspace(0.0, 1.0, bins + 1)
+    idx = np.clip(np.digitize(s, edges[1:-1]), 0, bins - 1)
+    points, ece = [], 0.0
+    for b in range(bins):
+        mask = idx == b
+        if not mask.any():
+            continue
+        confidence = float(s[mask].mean())
+        frequency = float(y[mask].mean())
+        points.append([round(confidence, 4), round(frequency, 4), int(mask.sum())])
+        ece += mask.sum() / y.size * abs(frequency - confidence)
+    return points, float(ece)
+
+
 def classification_metrics(y_true: np.ndarray, score: np.ndarray, threshold: float) -> dict:
-    """Rappel, précision, F1, aire sous la courbe précision-rappel et score de Brier."""
+    """Rappel, précision, F1, aire sous la courbe précision-rappel, Brier et calibration."""
     from sklearn.metrics import average_precision_score, brier_score_loss
 
     y = y_true.ravel().astype(int)
@@ -26,6 +50,7 @@ def classification_metrics(y_true: np.ndarray, score: np.ndarray, threshold: flo
         "f1": f1,
         "pr_auc": float(average_precision_score(y, s)) if y.any() else float("nan"),
         "brier": float(brier_score_loss(y, np.clip(s, 0, 1))),
+        "ece": classification_curve(y, s)[1],
         "seuil": threshold,
         "positifs": int(y.sum()),
         "exemples": int(y.size),
@@ -54,7 +79,7 @@ def train_lightgbm(train: PredictionData, val: PredictionData, test: PredictionD
 
     Xtr, Xva, Xte = (tabular_features(d) for d in (train, val, test))
 
-    def fit_horizon(days: int) -> dict:
+    def fit_horizon(days: int):
         ytr, yva, yte = (d.label_days(days) for d in (train, val, test))
         p_val, p_test = np.zeros(yva.shape), np.zeros(yte.shape)
         for k in range(ytr.shape[1]):
@@ -69,15 +94,20 @@ def train_lightgbm(train: PredictionData, val: PredictionData, test: PredictionD
                 subsample_freq=1,
                 colsample_bytree=0.8,
                 scale_pos_weight=10.0,
+                random_state=0,
+                deterministic=True,
+                force_row_wise=True,
                 verbose=-1,
             )
             clf.fit(Xtr, ytr[:, k])
             p_val[:, k] = clf.predict_proba(Xva)[:, 1]
             p_test[:, k] = clf.predict_proba(Xte)[:, 1]
-        return classification_metrics(yte, p_test, best_threshold(yva, p_val))
+        return classification_metrics(yte, p_test, best_threshold(yva, p_val)), yte, p_test
 
-    metrics = fit_horizon(1)
-    metrics["a_7_jours"] = fit_horizon(7)
+    metrics, _, _ = fit_horizon(1)
+    week, y7, p7 = fit_horizon(7)
+    week["calibration_7j"] = classification_curve(y7, p7)[0]
+    metrics["a_7_jours"] = week
     return metrics
 
 
@@ -172,6 +202,9 @@ def evaluate_network(model, val: PredictionData, test: PredictionData) -> dict:
     metrics = out[1]
     metrics["a_7_jours"] = out[7]
     metrics["c_index_7j"] = _concordance(test, failure_probability(lt, 7).numpy())
+    metrics["calibration_7j"] = classification_curve(
+        test.label_days(7), failure_probability(lt, 7).numpy()
+    )[0]
     return metrics
 
 

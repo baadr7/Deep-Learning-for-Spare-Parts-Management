@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import yaml
@@ -9,7 +10,7 @@ import yaml
 from spareparts.config import ROOT
 from spareparts.policies.base import Policy
 from spareparts.policies.classic import ConditionalPolicy, FixedThresholdPolicy
-from spareparts.policies.learned import LEVEL_OF, LearnedPolicy, model_path
+from spareparts.policies.learned import LEVEL_OF, LearnedPolicy, model_meta, model_path
 from spareparts.policies.oracle import OraclePolicy
 
 TUNED_DIR = ROOT / "configs" / "policies"
@@ -21,6 +22,7 @@ POLICY_LABELS = {
     "P3": "Prédictive sans apprentissage par renforcement",
     "P4": "Agent DRL, niveau N1",
     "P5": "Agent DRL, niveau N2",
+    "RPPO": "Agent DRL à mémoire (PPO récurrent), niveau N1",
     "DQN": "DQN, niveau d'action réduit",
     "BDQ": "Branching Dueling Q-Network, niveau N2",
     "Oracle": "Connaissance des pannes futures",
@@ -49,6 +51,13 @@ def available_policies(scenario: str = "s1_nominal") -> list[str]:
 
 def _bdq_path(scenario: str) -> Path:
     return ROOT / "models" / "rl" / f"bdq_{scenario}.pt"
+
+
+def _bdq_meta(scenario: str) -> dict:
+    meta = _bdq_path(scenario).with_suffix(".json")
+    if meta.exists():
+        return json.loads(meta.read_text(encoding="utf-8"))
+    return {}
 
 
 def _predictor_path(scenario: str):
@@ -86,12 +95,21 @@ def make_policy(code: str, scenario: str = "s1_nominal") -> Policy:
                 f"agent {code} non entraîné pour {scenario} : lancer scripts/train_rl.py"
             )
         params = tuned_parameters(code, scenario) or {}
+        meta = model_meta(code, scenario)
         return LearnedPolicy(
             path,
             LEVEL_OF[code],
             name=code,
             label=POLICY_LABELS[code],
             deterministic=params.get("deterministic", True),
+            scenario=scenario,
+            use_risk=bool(meta.get("use_risk", False)),
+            use_drift=bool(meta.get("use_drift", False)),
+            risk_min=meta.get("risk_min"),
+            # ``algo`` est relu dans les métadonnées du modèle : il distingue le DQN, le
+            # MaskablePPO et la variante à mémoire (PPO récurrent), qui ne se chargent pas
+            # par la même classe.
+            algo=meta.get("algo", "maskable_ppo"),
         )
     if code == "BDQ":
         from spareparts.rl.bdq import BDQPolicy, load_bdq
@@ -100,7 +118,14 @@ def make_policy(code: str, scenario: str = "s1_nominal") -> Policy:
             raise ValueError(
                 f"réseau BDQ non entraîné pour {scenario} : lancer scripts/train_bdq.py"
             )
-        return BDQPolicy(load_bdq(_bdq_path(scenario)))
+        meta = _bdq_meta(scenario)
+        return BDQPolicy(
+            load_bdq(_bdq_path(scenario)),
+            scenario=scenario,
+            use_risk=bool(meta.get("use_risk", False)),
+            use_drift=bool(meta.get("use_drift", False)),
+            risk_min=meta.get("risk_min"),
+        )
     if code == "Oracle":
         return OraclePolicy()
     raise ValueError(f"politique inconnue : {code}")

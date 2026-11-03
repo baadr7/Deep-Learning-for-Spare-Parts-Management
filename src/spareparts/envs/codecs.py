@@ -38,7 +38,21 @@ PRIOR_MACHINE = 5.0
 
 @dataclass
 class Context:
-    """Grandeurs fixes d'un épisode, utilisées pour normaliser les observations."""
+    """Grandeurs fixes d'un épisode, utilisées pour normaliser les observations.
+
+    Deux blocs optionnels enrichissent l'observation de la même information que les politiques
+    de référence (cahier des charges, § 5.3) :
+
+    - ``use_risk`` ajoute le risque de panne estimé par le réseau de survie (§ 5.2), soit la
+      grandeur qui déclenche la maintenance de P3 ;
+    - ``use_drift`` ajoute l'écart normalisé du signal propre à chaque composant, orienté dans le
+      sens de sa dérive, soit la grandeur qui déclenche la maintenance conditionnelle de P2.
+
+    L'agent dispose ainsi des deux sources d'information, et l'apprentissage par renforcement
+    n'a plus qu'à en tirer une règle adaptative. ``risk_min`` découple le masquage d'actions de
+    l'observation : lorsqu'un seuil est fixé, seuls les composants dont le risque prédit dépasse
+    ce seuil restent disponibles à la maintenance préventive (§ 6, amélioration 6).
+    """
 
     S_base: np.ndarray
     capacity: int
@@ -46,9 +60,22 @@ class Context:
     n_machines: int
     n_components: int
     n_parts: int
+    use_risk: bool = False
+    use_drift: bool = False
+    # Seuil de risque au-delà duquel une maintenance préventive reste autorisée au niveau N2 :
+    # l'agent ne peut remplacer un composant que si le risque de panne prédit le justifie. À
+    # ``None``, aucune restriction n'est ajoutée (comportement historique).
+    risk_min: float | None = None
 
     @classmethod
-    def from_sim(cls, sim: FleetSimulation, horizon: int) -> Context:
+    def from_sim(
+        cls,
+        sim: FleetSimulation,
+        horizon: int,
+        use_risk: bool = False,
+        use_drift: bool = False,
+        risk_min: float | None = None,
+    ) -> Context:
         return cls(
             S_base=np.array([max(p.S, 1) for p in sim.cfg.parts], dtype=float),
             capacity=sim.cfg.technicians,
@@ -56,7 +83,22 @@ class Context:
             n_machines=sim.M,
             n_components=sim.K,
             n_parts=sim.P,
+            use_risk=use_risk,
+            use_drift=use_drift,
+            risk_min=risk_min,
         )
+
+
+def drifted_signal(obs: Observation) -> np.ndarray:
+    """Écart normalisé du signal de chaque composant, orienté dans le sens de sa dérive.
+
+    Un composant usé fait dériver la mesure qui lui est associée ; l'écart est ramené en
+    écarts-types et multiplié par le signe de la dérive, de sorte qu'une valeur croissante
+    signale toujours un composant qui se dégrade. C'est exactement la grandeur sur laquelle
+    décide la politique conditionnelle P2 (``ConditionalPolicy``).
+    """
+    rows = np.arange(obs.machine_state.shape[0])[:, None]
+    return obs.signal_z_24h[rows, obs.signal_of] * obs.drift_sign
 
 
 def fleet_features(obs: Observation, ctx: Context) -> np.ndarray:
@@ -71,8 +113,11 @@ def fleet_features(obs: Observation, ctx: Context) -> np.ndarray:
     comps = np.concatenate(
         [r.mean(axis=0), (r >= 0.8).mean(axis=0), (r >= 1.0).mean(axis=0), r.max(axis=0) / 2.0]
     )
-    if obs.risk is not None:
+    if ctx.use_risk:
         comps = np.concatenate([comps, obs.risk.mean(axis=0) * 10.0, obs.risk.max(axis=0)])
+    if ctx.use_drift:
+        drift = drifted_signal(obs)
+        comps = np.concatenate([comps, drift.mean(axis=0) / 3.0, drift.max(axis=0) / 3.0])
 
     states = obs.machine_state
     rate = np.nan_to_num(obs.defect_rate_24h, nan=0.0)
@@ -90,13 +135,15 @@ def fleet_features(obs: Observation, ctx: Context) -> np.ndarray:
     return np.clip(np.concatenate([parts, comps, fleet]), -OBS_CLIP, OBS_CLIP).astype(np.float32)
 
 
-def machine_features(obs: Observation) -> np.ndarray:
-    """Pour chaque machine : en service ou non, avancement de chaque composant."""
+def machine_features(obs: Observation, ctx: Context) -> np.ndarray:
+    """Par machine : service, avancement des composants, risque prédit, dérive du signal."""
     operational = (obs.machine_state == MachineState.OPERATIONAL).astype(float)[:, None]
     ratio = np.clip(obs.age_unit / obs.pm_interval, 0.0, 3.0) / 2.0
     cols = [operational, ratio]
-    if obs.risk is not None:
+    if ctx.use_risk:
         cols.append(np.clip(obs.risk * 10.0, 0.0, OBS_CLIP))
+    if ctx.use_drift:
+        cols.append(np.clip(drifted_signal(obs) / 3.0, -OBS_CLIP, OBS_CLIP))
     return np.concatenate(cols, axis=1).ravel().astype(np.float32)
 
 
@@ -181,11 +228,11 @@ class Level2Codec:
                 np.full(ctx.n_machines, ctx.n_components + 1),
             ]
         ).astype(int)
-        per_machine = 1 + ctx.n_components
+        per_machine = 1 + ctx.n_components * (1 + ctx.use_risk + ctx.use_drift)
         self.obs_size = len(fleet_features_template(ctx)) + ctx.n_machines * per_machine
 
     def observe(self, obs: Observation) -> np.ndarray:
-        return np.concatenate([fleet_features(obs, self.ctx), machine_features(obs)])
+        return np.concatenate([fleet_features(obs, self.ctx), machine_features(obs, self.ctx)])
 
     def masks(self, obs: Observation) -> np.ndarray:
         ctx = self.ctx
@@ -195,6 +242,12 @@ class Level2Codec:
         in_stock = obs.stock[obs.part_of] > 0
         worn = obs.age_unit / obs.pm_interval >= PM_MIN_RATIO
         can = operational[:, None] & in_stock & worn & (obs.techs_free > 0)
+        # Masquage guidé par le risque (§ 6, amélioration 6) : lorsqu'un seuil est fixé, un
+        # remplacement préventif n'est proposé que sur un composant dont le risque de panne
+        # prédit le justifie. Le masque écarte les options à faible intérêt et concentre
+        # l'exploration ; à ``None``, aucune restriction n'est ajoutée.
+        if ctx.risk_min is not None and obs.risk is not None:
+            can = can & (obs.risk >= ctx.risk_min)
         machines = np.concatenate([np.ones((ctx.n_machines, 1), dtype=bool), can], axis=1)
         return np.concatenate(parts + urgent + [machines.ravel()])
 
@@ -232,8 +285,9 @@ def inaction_prior(codec: Level2Codec) -> np.ndarray:
 
 
 def fleet_features_template(ctx: Context) -> np.ndarray:
-    """Taille de ``fleet_features`` sans risque prédit (4 P + 4 K + 7)."""
-    return np.zeros(4 * ctx.n_parts + 4 * ctx.n_components + 7)
+    """Taille de ``fleet_features`` : 4 P + 4 K + 7, plus 2 K par bloc d'information observé."""
+    extra = 2 * ctx.n_components * (ctx.use_risk + ctx.use_drift)
+    return np.zeros(4 * ctx.n_parts + 4 * ctx.n_components + 7 + extra)
 
 
 CODECS = {"reduced": ReducedCodec, "n1": Level1Codec, "n2": Level2Codec}

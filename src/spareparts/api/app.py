@@ -217,6 +217,67 @@ def prediction_metrics() -> dict:
     return jsonable(out)
 
 
+@app.get("/api/evaluation")
+def evaluation_report() -> dict:
+    """Évaluation comparative enregistrée (§ 7.3) : coût, TRS, TOST et robustesse.
+
+    Le fichier est produit par scripts/evaluate_policies.py --robustness. Les tirages bruts
+    (clé « runs ») sont écartés : l'interface n'affiche que les synthèses par politique.
+    """
+    import json
+
+    from spareparts.config import ROOT
+
+    path = ROOT / "reports" / "evaluation_s1_nominal.json"
+    if not path.exists():
+        return {"available": False}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data.pop("runs", None)
+    return jsonable({"available": True, **data})
+
+
+@app.get("/api/generalisation")
+def generalisation_report() -> dict:
+    """Stabilité du classement selon la composition de la flotte (item 12, § 7.4).
+
+    Le fichier est produit par scripts/generalize_ranking.py. Les tirages bruts
+    (clé « runs » de chaque composition) sont écartés : l'interface n'affiche que les
+    synthèses par composition.
+    """
+    import json
+
+    from spareparts.config import ROOT
+
+    path = ROOT / "reports" / "metrics" / "generalisation_flotte.json"
+    if not path.exists():
+        return {"available": False}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    for case in data.get("cases", []):
+        case.pop("runs", None)
+    return jsonable({"available": True, **data})
+
+
+@app.get("/api/plancher")
+def floor_report() -> dict:
+    """Plancher de représentation des espaces d'action (décomposition de l'objectif O4).
+
+    Le fichier est produit par scripts/action_space_floor.py. Le classement exhaustif des
+    36 actions de l'espace réduit (clé « classement ») est écarté : l'interface n'affiche que
+    les planchers, les bornes publiées et la décomposition de l'écart à P1.
+    """
+    import json
+
+    from spareparts.config import ROOT
+
+    path = ROOT / "reports" / "metrics" / "plancher_representation.json"
+    if not path.exists():
+        return {"available": False}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    for space in data.get("espaces", {}).values():
+        space.pop("classement", None)
+    return jsonable({"available": True, **data})
+
+
 _surrogate: dict = {}
 
 

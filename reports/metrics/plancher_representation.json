@@ -1,0 +1,281 @@
+{
+  "scenario": "s1_nominal",
+  "replications": 30,
+  "days": 365,
+  "seeds": [
+    9000,
+    9001,
+    9002,
+    9003,
+    9004,
+    9005,
+    9006,
+    9007,
+    9008,
+    9009,
+    9010,
+    9011,
+    9012,
+    9013,
+    9014,
+    9015,
+    9016,
+    9017,
+    9018,
+    9019,
+    9020,
+    9021,
+    9022,
+    9023,
+    9024,
+    9025,
+    9026,
+    9027,
+    9028,
+    9029
+  ],
+  "reference": "P1",
+  "bornes": {
+    "P1": 52136.240476015264,
+    "P2": 47135.25132750522,
+    "P3": 49220.37477821282,
+    "Oracle": 42407.75694523439
+  },
+  "couts_publies": {
+    "P0": 55355.1132653296,
+    "P1": 52136.240476015264,
+    "P2": 47135.25132750522,
+    "P3": 49220.37477821282,
+    "DQN": 54931.68528446608,
+    "P4": 52798.7243956487,
+    "P5": 67048.61296521426,
+    "BDQ": 74824.9723320087,
+    "Oracle": 42407.75694523439
+  },
+  "espaces": {
+    "reduced": {
+      "methode": "énumération exhaustive des 36 actions",
+      "n_actions": 36,
+      "exhaustif": true,
+      "plancher": {
+        "action": 15,
+        "pm_index": 2,
+        "stock_index": 3,
+        "pm_level": 1.0,
+        "stock_level": 1.5,
+        "cout_total": 54279.32983610685
+      },
+      "classement": [
+        {
+          "action": 15,
+          "cout_total": 54279.32983610685
+        },
+        {
+          "action": 22,
+          "cout_total": 54304.77359420279
+        },
+        {
+          "action": 11,
+          "cout_total": 54322.94634621976
+        },
+        {
+          "action": 17,
+          "cout_total": 54347.787733520665
+        },
+        {
+          "action": 9,
+          "cout_total": 54390.1725030204
+        },
+        {
+          "action": 3,
+          "cout_total": 54401.7084432283
+        },
+        {
+          "action": 16,
+          "cout_total": 54446.62255997634
+        },
+        {
+          "action": 5,
+          "cout_total": 54466.0280576536
+        },
+        {
+          "action": 21,
+          "cout_total": 54531.44306693142
+        },
+        {
+          "action": 23,
+          "cout_total": 54608.09570160163
+        },
+        {
+          "action": 10,
+          "cout_total": 54965.384420962895
+        },
+        {
+          "action": 4,
+          "cout_total": 55069.563695412275
+        },
+        {
+          "action": 2,
+          "cout_total": 55237.769685013634
+        },
+        {
+          "action": 8,
+          "cout_total": 55280.83467442732
+        },
+        {
+          "action": 14,
+          "cout_total": 55355.1132653296
+        },
+        {
+          "action": 20,
+          "cout_total": 55558.65058456141
+        },
+        {
+          "action": 28,
+          "cout_total": 55737.62995141155
+        },
+        {
+          "action": 7,
+          "cout_total": 55918.692511962254
+        },
+        {
+          "action": 27,
+          "cout_total": 55973.21635696492
+        },
+        {
+          "action": 1,
+          "cout_total": 55976.414003146085
+        },
+        {
+          "action": 13,
+          "cout_total": 56044.30219162362
+        },
+        {
+          "action": 29,
+          "cout_total": 56065.21619777959
+        },
+        {
+          "action": 19,
+          "cout_total": 56681.37735602847
+        },
+        {
+          "action": 26,
+          "cout_total": 57029.77441867164
+        },
+        {
+          "action": 25,
+          "cout_total": 58378.3952055934
+        },
+        {
+          "action": 18,
+          "cout_total": 60277.89274539861
+        },
+        {
+          "action": 0,
+          "cout_total": 60363.198756103426
+        },
+        {
+          "action": 6,
+          "cout_total": 60395.39999773198
+        },
+        {
+          "action": 12,
+          "cout_total": 60523.84052316179
+        },
+        {
+          "action": 24,
+          "cout_total": 60890.29708779589
+        },
+        {
+          "action": 34,
+          "cout_total": 62687.88269896432
+        },
+        {
+          "action": 33,
+          "cout_total": 62969.033656155756
+        },
+        {
+          "action": 35,
+          "cout_total": 63143.0866385698
+        },
+        {
+          "action": 32,
+          "cout_total": 63985.557137298754
+        },
+        {
+          "action": 31,
+          "cout_total": 64796.341960988975
+        },
+        {
+          "action": 30,
+          "cout_total": 66631.28037452955
+        }
+      ]
+    },
+    "n1": {
+      "methode": "montée de coordonnée, 4 départs × 3 balayages",
+      "n_actions": 1679616,
+      "exhaustif": false,
+      "evaluations": 628,
+      "plancher": {
+        "action": [
+          0,
+          4,
+          1,
+          5,
+          5,
+          5,
+          5,
+          5
+        ],
+        "pm_index": [
+          0,
+          4,
+          1,
+          5
+        ],
+        "stock_index": [
+          5,
+          5,
+          5,
+          5
+        ],
+        "pm_levels": [
+          0.6,
+          1.5,
+          0.8,
+          Infinity
+        ],
+        "stock_levels": [
+          3.0,
+          3.0,
+          3.0,
+          3.0
+        ],
+        "cout_total": 50184.58250376315
+      }
+    }
+  },
+  "decomposition": {
+    "DQN": {
+      "espace": "reduced",
+      "cout_agent": 54931.68528446608,
+      "cout_plancher": 54279.32983610685,
+      "cout_p1": 52136.240476015264,
+      "ecart_observe": 2795.4448084508185,
+      "ecart_apprentissage": 652.3554483592306,
+      "ecart_representation": 2143.089360091588,
+      "part_apprentissage": 0.2333637374585669
+    },
+    "P4": {
+      "espace": "n1",
+      "cout_agent": 52798.7243956487,
+      "cout_plancher": 50184.58250376315,
+      "cout_p1": 52136.240476015264,
+      "ecart_observe": 662.483919633436,
+      "ecart_apprentissage": 2614.141891885549,
+      "ecart_representation": -1951.6579722521128,
+      "part_apprentissage": 3.945970331373476
+    }
+  }
+}

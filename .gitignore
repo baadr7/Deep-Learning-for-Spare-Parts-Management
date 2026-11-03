@@ -17,6 +17,7 @@ models/*
 !models/.gitkeep
 runs/
 mlruns/
+mlflow.db
 outputs/
 
 # Interface web

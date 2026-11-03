@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "Si vous utilisez ce logiciel, veuillez citer la référence ci-dessous."
+title: "Pilotage conjoint de la maintenance et du stock de pièces de rechange d'une flotte de machines"
+abstract: >-
+  Simulateur à événements discrets d'une flotte de cent machines couplant
+  maintenance et gestion de stock de pièces de rechange, assorti de modèles de
+  survie pour la prédiction des défaillances, de politiques d'apprentissage par
+  renforcement, d'un modèle de substitution pour l'estimation instantanée des
+  indicateurs, et d'une application web FastAPI et React pour l'exploration des
+  scénarios.
+authors:
+  - family-names: Bilal
+    given-names: MA
+  - family-names: Elmadani
+    given-names: Adam
+year: 2026
+type: software
+license: MIT

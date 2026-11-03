@@ -6,10 +6,14 @@ import {
   Gauge,
   Package,
   Radio,
+  Scale,
   SlidersHorizontal,
+  SquareTerminal,
 } from "lucide-react";
+import { Suspense } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useRun } from "../lib/run";
+import { Loading } from "./ui";
 
 const NAV = [
   { to: "/", label: "Tableau de bord", icon: Gauge, end: true },
@@ -17,8 +21,10 @@ const NAV = [
   { to: "/machines", label: "Machines", icon: Cog },
   { to: "/stock", label: "Stock", icon: Package },
   { to: "/comparaison", label: "Comparaison", icon: ChartColumnBig },
+  { to: "/evaluation", label: "Évaluation", icon: Scale },
   { to: "/scenarios", label: "Scénarios", icon: SlidersHorizontal },
   { to: "/donnees", label: "Données", icon: Database },
+  { to: "/reproductibilite", label: "Reproductibilité", icon: SquareTerminal },
 ];
 
 export function Layout() {
@@ -71,7 +77,9 @@ export function Layout() {
       </aside>
       </div>
       <main className="min-w-0 flex-1">
-        <Outlet />
+        <Suspense fallback={<Loading label="Chargement…" />}>
+          <Outlet />
+        </Suspense>
       </main>
     </div>
   );

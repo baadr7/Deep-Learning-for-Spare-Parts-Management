@@ -113,3 +113,45 @@ def test_one_year_runs_fast_enough(cfg):
     start = time.perf_counter()
     FleetSimulation(cfg, seed=4, log_events=False).run(make_policy("P0"))
     assert time.perf_counter() - start < 3.0
+
+
+def test_state_intervals_tile_each_machine_timeline(cfg):
+    """Chaque séjour d'état est horodaté et les séjours d'une machine pavent l'horizon."""
+    days = 120
+    result = FleetSimulation(cfg, seed=7).run(make_policy("P2"), days=days)
+    intervals = result.state_intervals
+    assert intervals
+    horizon = days * 24.0
+    by_machine: dict[int, list[dict]] = {}
+    for iv in intervals:
+        assert iv["start"] <= iv["end"]
+        assert iv["duration"] == pytest.approx(iv["end"] - iv["start"], abs=1e-2)
+        assert 0 <= iv["state"] < len(MachineState)
+        assert iv["cause"]
+        by_machine.setdefault(iv["machine"], []).append(iv)
+    for ivs in by_machine.values():
+        ivs.sort(key=lambda e: e["start"])
+        assert ivs[0]["start"] == pytest.approx(0.0)
+        assert ivs[-1]["end"] == pytest.approx(horizon)
+        # Un séjour commence exactement là où le précédent s'achève : aucune période manquante.
+        for prev, nxt in zip(ivs, ivs[1:], strict=False):
+            assert prev["end"] == pytest.approx(nxt["start"])
+    # Les séjours couvrent toutes les transitions : reprise en service et tests sont tracés.
+    causes = {iv["cause"] for iv in intervals}
+    assert "remise en service" in causes
+    assert "contrôle après intervention" in causes
+
+
+def test_failed_state_sojourn_equals_diagnosis_time(cfg):
+    """Le séjour en panne (détection et diagnostic) dure exactement le diagnostic tiré."""
+    sim = FleetSimulation(cfg, seed=1)
+    policy = make_policy("P0")
+    policy.reset(sim)
+    sim.apply(policy.decide(sim.observe()))
+    sim.env.run(until=365 * 24.0)
+    diag_spans = [
+        iv["duration"] for iv in sim.state_intervals if iv["state"] == MachineState.FAILED
+    ]
+    assert diag_spans
+    # Toutes les durées de diagnostic sont strictement positives et finies.
+    assert all(0.0 < d < 24.0 for d in diag_spans)

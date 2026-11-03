@@ -1,0 +1,9 @@
+# Compilation du rapport avec XeLaTeX et les polices du système.
+#
+#   latexmk -xelatex rapport.tex
+#
+# Latexmk relance XeLaTeX autant de fois que nécessaire jusqu'à ce que la table des matières, les
+# listes de figures et de tableaux et les renvois soient stables : c'est le rôle des « deux
+# passes » que l'annexe décrit, automatisé ici.
+$pdf_mode = 5;  # 5 = xelatex
+$xelatex = 'xelatex -interaction=nonstopmode -halt-on-error -file-line-error %O %S';

@@ -1,0 +1,34 @@
+\begin{tabularx}{\linewidth}{@{}P{2.2cm} L@{}}
+\toprule
+\hd{Symbole} & \hd{Signification} \\
+\midrule
+\multicolumn{2}{@{}l}{\hd{Indices et dimensions}}\\
+$i$ & Machine de la flotte, $i = 1 \dots M$ \\
+$k$ & Composant d'une machine, $k = 1 \dots K = 4$ (comp1 à comp4) \\
+$p$ & Référence de pièce de rechange, $p = 1 \dots P$ \\
+$t$ & Temps : heures pour le simulateur, jours pour les décisions d'un agent \\
+$M$, $K$, $P$ & Nombre de machines, de composants par machine et de références de pièces \\
+$n$ & Nombre de réplications (années simulées) d'une politique \\
+\addlinespace
+\multicolumn{2}{@{}l}{\hd{Durées de vie et fiabilité}}\\
+$\beta$ & Paramètre de forme de la loi de Weibull (usure croissante si $\beta > 1$) \\
+$\eta$ & Paramètre d'échelle de la loi de Weibull, en heures \\
+$R(t)$ & Fiabilité : probabilité qu'un composant survive jusqu'à l'âge $t$ \\
+\addlinespace
+\multicolumn{2}{@{}l}{\hd{Gestion du stock et de la maintenance}}\\
+$(s,S)$ & Point de commande et niveau de recomplètement d'une référence \\
+$f$ & Facteur d'intervalle de maintenance préventive ($1$ = intervalle constructeur) \\
+\addlinespace
+\multicolumn{2}{@{}l}{\hd{Apprentissage par renforcement}}\\
+$\pi$ & Politique de l'agent : loi de probabilité sur les actions, conditionnée par l'observation \\
+$r_t$ & Récompense de la journée $t$, opposée de son coût total divisée par $150$ \\
+$\gamma$ & Facteur d'actualisation des récompenses ($0{,}995$ pour P4 et P5) \\
+$\varepsilon$ & Taux d'exploration de l'agent DQN, décroissant au fil de l'apprentissage \\
+\addlinespace
+\multicolumn{2}{@{}l}{\hd{Évaluation et statistiques}}\\
+$p$ & Valeur de signification d'un test (Wilcoxon apparié, test d'équivalence TOST) \\
+$R^2$ & Coefficient de détermination d'un modèle de substitution \\
+$S_i$ & Indice de Sobol de premier ordre : part de variance due au paramètre $i$ seul \\
+$S_{Ti}$ & Indice de Sobol total : part due au paramètre $i$, interactions comprises \\
+\bottomrule
+\end{tabularx}

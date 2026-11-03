@@ -1,0 +1,19 @@
+This project studies the joint control of maintenance and spare-parts inventory for a fleet of 100
+machines split into two families, one ageing with use and the other ageing with the calendar. A
+discrete-event simulator reproduces failures, maintenance, replenishment, manufacturing defects and
+telemetry; calibrated on the Microsoft Azure Predictive Maintenance dataset, it recovers the number
+of failures of each component over the year 2015 to within 10~\%. Recurrent and convolutional
+survival networks estimate the failure risk of each component from 48 hours of signals; they beat
+LightGBM on simulated data and, at a 7-day horizon, on real data. A predictive policy built on these
+networks reduces the annual cost by 5.6~\% compared with an optimised fixed-threshold policy, a
+significant gap over 30 simulated years, yet a simple condition-based maintenance does even better,
+with 9.6~\% savings. Deep reinforcement-learning agents (PPO with action masking, DQN, and a
+Branching Dueling Q-Network) do not reach the optimised threshold policy: the best one, which sets
+the maintenance and inventory thresholds day by day, comes within 1.3~\%, while the agents that
+decide machine by machine remain far behind. A surrogate model ($R^2$ of 0.99 on cost) enables the
+Sobol sensitivity analysis, and a web application restitutes the whole.
+
+\vspace{0.8em}
+\noindent\textbf{Keywords~:} predictive maintenance, discrete-event simulation, survival analysis,
+deep learning, reinforcement learning, spare-parts inventory, surrogate model, global sensitivity
+analysis, industrial web application.

@@ -1,0 +1,7 @@
+name: s1_nominal / composition_03
+base: s1_nominal
+seed: 5880883
+technicians: 3
+family_share:
+  U: 0.6186331781117702
+  C: 0.3813668218882298

@@ -69,6 +69,13 @@ class BDQConfig:
     eps_end: float = 0.05
     eps_fraction: float = 0.3
     seed: int = 0
+    # Curriculum : l'épisode démarre à ``curriculum_days`` jours et s'allonge jusqu'à l'horizon
+    # complet au fil de l'apprentissage. 0 désactive le curriculum (épisodes à l'horizon entier).
+    curriculum_days: int = 0
+    # Récompense par branche (§ 6, amélioration 5) : lorsque la variable d'environnement fournit
+    # une récompense par branche, chaque tête est entraînée sur l'effet de sa propre décision au
+    # lieu de la seule récompense globale. Désactivée, le BDQ retrouve son comportement historique.
+    branch_reward: bool = False
 
 
 class _Replay:
@@ -76,7 +83,9 @@ class _Replay:
         self.obs = np.zeros((size, obs_size), np.float32)
         self.next_obs = np.zeros((size, obs_size), np.float32)
         self.actions = np.zeros((size, n_branches), np.int64)
-        self.rewards = np.zeros(size, np.float32)
+        # Une récompense par branche : la récompense globale, diffusée, redonne exactement le
+        # comportement historique ; la récompense par branche distingue les décisions.
+        self.rewards = np.zeros((size, n_branches), np.float32)
         self.done = np.zeros(size, np.float32)
         self.next_masks = np.zeros((size, mask_size), bool)
         self.size, self.pos, self.full = size, 0, False
@@ -125,7 +134,17 @@ def train_bdq(env, cfg: BDQConfig, log=print, history: list | None = None) -> Br
     obs, _ = env.reset(seed=cfg.seed)
     masks = env.action_masks()
     episode_cost, episodes = 0.0, 0
+    start = cfg.curriculum_days
+    current_days = start
     for step in range(cfg.total_steps):
+        # Curriculum : un épisode court multiplie les fins d'épisode, donc les retours, avant que
+        # l'horizon ne rejoigne sa valeur complète. Le rappel PPO suit la même montée dans train_rl.
+        if start:
+            fraction = min(1.0, step / max(cfg.total_steps, 1))
+            days = int(round(start + (env.horizon - start) * fraction))
+            if days != current_days:
+                current_days = days
+                env.set_episode_days(days)
         frac = min(1.0, step / (cfg.eps_fraction * cfg.total_steps))
         eps = cfg.eps_start + frac * (cfg.eps_end - cfg.eps_start)
         with torch.no_grad():
@@ -138,14 +157,20 @@ def train_bdq(env, cfg: BDQConfig, log=print, history: list | None = None) -> Br
         action = np.where(explore, logits.argmax(axis=1), action)
         next_obs, reward, terminated, truncated, info = env.step(action)
         next_masks = env.action_masks()
-        replay.add(obs, action, reward, next_obs, float(terminated), next_masks)
+        # Si l'environnement fournit une récompense par branche, elle guide chaque tête
+        # séparément ; sinon la récompense globale est diffusée comme auparavant.
+        step_reward = info.get("reward_branch", reward)
+        replay.add(obs, action, step_reward, next_obs, float(terminated), next_masks)
         episode_cost += info["cost"]
         obs, masks = next_obs, next_masks
         if terminated or truncated:
             episodes += 1
-            log(f"BDQ épisode {episodes:3d}  pas {step + 1:7d}  coût {episode_cost:9.0f}")
+            # L'historique est complété avant l'appel à ``log`` : un appelant peut ainsi suivre
+            # l'entraînement au fil de l'eau en lisant la dernière entrée plutôt qu'en analysant
+            # le message.
             if history is not None:
                 history.append((step + 1, episode_cost))
+            log(f"BDQ épisode {episodes:3d}  pas {step + 1:7d}  coût {episode_cost:9.0f}")
             obs, _ = env.reset()
             masks = env.action_masks()
             episode_cost = 0.0
@@ -157,8 +182,10 @@ def train_bdq(env, cfg: BDQConfig, log=print, history: list | None = None) -> Br
             with torch.no_grad():
                 best = net(o2, m2).argmax(dim=2, keepdim=True)
                 next_v = target(o2, m2).gather(2, best).squeeze(2).mean(dim=1)
-                y = r + cfg.gamma * (1 - d) * next_v
-            loss = ((q_taken - y[:, None]) ** 2).mean()
+                # Cible par branche : la valeur d'état commune (moyenne sur les branches) est
+                # ajoutée à la récompense propre à chaque branche.
+                y = r + cfg.gamma * (1 - d)[:, None] * next_v[:, None]
+            loss = ((q_taken - y) ** 2).mean()
             opt.zero_grad()
             loss.backward()
             nn.utils.clip_grad_norm_(net.parameters(), 10.0)
@@ -185,16 +212,51 @@ class BDQPolicy(Policy):
     name = "BDQ"
     label = "Branching Dueling Q-Network, niveau N2"
 
-    def __init__(self, net: BranchingQNet, horizon: int = 365):
+    def __init__(
+        self,
+        net: BranchingQNet,
+        horizon: int = 365,
+        scenario: str = "s1_nominal",
+        use_risk: bool = False,
+        use_drift: bool = False,
+        risk_min: float | None = None,
+    ):
         self.net, self.horizon = net.eval(), horizon
+        self.scenario, self.use_risk, self.use_drift = scenario, use_risk, use_drift
+        self.risk_min = risk_min
+        self._predictor = None
 
     def reset(self, sim: FleetSimulation) -> None:
         from spareparts.envs.codecs import Context, Level2Codec
 
         super().reset(sim)
-        self.codec = Level2Codec(Context.from_sim(sim, self.horizon))
+        self.sim = sim
+        self.codec = Level2Codec(
+            Context.from_sim(
+                sim,
+                self.horizon,
+                use_risk=self.use_risk,
+                use_drift=self.use_drift,
+                risk_min=self.risk_min,
+            )
+        )
+        if self.use_risk:
+            from spareparts.predict.inference import (
+                make_predictor,
+                risk_horizon_days,
+                window_hours,
+            )
+
+            if sim.telemetry_window() is None:
+                sim.enable_window(window_hours())
+            self._predictor = make_predictor(self.scenario, sim)
+            self._risk_days = risk_horizon_days(self.scenario)
 
     def decide(self, obs: Observation) -> Decisions:
+        if self.use_risk:
+            from spareparts.predict.inference import observed_risk
+
+            obs.risk = observed_risk(self._predictor, self.sim, obs, self._risk_days)
         o = torch.from_numpy(self.codec.observe(obs))[None]
         m = torch.from_numpy(self.codec.masks(obs))[None]
         with torch.no_grad():

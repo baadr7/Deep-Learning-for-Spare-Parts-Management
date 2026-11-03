@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping, Sequence
 
 import numpy as np
 from scipy import stats
@@ -43,6 +43,54 @@ def summarize(runs: list[dict[str, float]], level: float = 0.95) -> dict[str, di
             half = 0.0
         summary[key] = {"mean": mean, "low": mean - half, "high": mean + half}
     return summary
+
+
+def paired_effects(
+    runs: Mapping[str, Mapping[str, Sequence[dict[str, float]]]],
+    reference: str = "nominal",
+    key: str = "cout_total",
+    level: float = 0.95,
+) -> dict[str, dict[str, dict[str, float]]]:
+    """Écart apparié de chaque politique à la situation de référence, avec IC et taille d'effet.
+
+    Toutes les politiques affrontent les mêmes graines dans toutes les situations : la différence
+    graine par graine isole l'effet de la situation dégradée du bruit de tirage, et son intervalle
+    de confiance se calcule sur ces différences, plus étroit que celui de deux moyennes
+    indépendantes. Pour chaque situation et chaque politique, on renvoie l'écart moyen en unités de
+    ``key``, son intervalle de confiance de Student, la variation relative correspondante
+    (l'écart rapporté au coût moyen de la référence) et la taille d'effet appariée de Cohen
+    ``d_z = moyenne(écart) / écart-type(écart)``, qui mesure l'écart en nombre d'écarts-types.
+    """
+    base = runs.get(reference, {})
+    out: dict[str, dict[str, dict[str, float]]] = {}
+    for name, by_policy in runs.items():
+        if name == reference:
+            continue
+        out[name] = {}
+        for code, policy_runs in by_policy.items():
+            if code not in base:
+                continue
+            ref = np.array([r[key] for r in base[code]], dtype=float)
+            value = np.array([r[key] for r in policy_runs], dtype=float)
+            n = min(ref.size, value.size)
+            diff = value[:n] - ref[:n]
+            mean = float(diff.mean())
+            if n > 1:
+                half = float(stats.t.ppf(0.5 + level / 2, n - 1) * stats.sem(diff))
+                spread = float(diff.std(ddof=1))
+            else:
+                half = spread = 0.0
+            centre = float(ref[:n].mean())
+            out[name][code] = {
+                "moyenne": mean,
+                "low": mean - half,
+                "high": mean + half,
+                "variation": mean / centre if centre else float("nan"),
+                "variation_low": (mean - half) / centre if centre else float("nan"),
+                "variation_high": (mean + half) / centre if centre else float("nan"),
+                "d_z": mean / spread if spread else 0.0,
+            }
+    return out
 
 
 def optimize_fixed_threshold(

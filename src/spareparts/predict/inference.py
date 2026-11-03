@@ -68,5 +68,34 @@ class FailurePredictor:
         return (1.0 - torch.exp(log_surv)).numpy()
 
 
+def make_predictor(scenario: str, sim: FleetSimulation) -> FailurePredictor:
+    """Charge le meilleur réseau de prédiction du scénario pour une simulation."""
+    arch = best_architecture(scenario)
+    if not arch:
+        raise FileNotFoundError(
+            f"aucun modèle de prédiction pour {scenario} : lancer scripts/train_predictor.py"
+        )
+    return FailurePredictor(MODEL_DIR / f"{arch}_{scenario}.pt", arch, sim)
+
+
+def risk_horizon_days(scenario: str) -> int:
+    """Horizon du risque observé par les agents, aligné sur la politique P3 (3 jours par défaut)."""
+    from spareparts.policies import tuned_parameters
+
+    return int((tuned_parameters("p3", scenario) or {}).get("pm_days", 3))
+
+
+def observed_risk(
+    predictor: FailurePredictor, sim: FleetSimulation, obs: Observation, days: int
+) -> np.ndarray:
+    """Probabilité cumulée de panne à ``days`` jours de chaque composant : [M, K].
+
+    C'est exactement la grandeur qui déclenche la maintenance de la politique P3 : les agents de
+    l'apprentissage par renforcement l'observent pour arbitrer entre prédiction et adaptation.
+    """
+    cum = predictor.cumulative(sim.telemetry_window(), obs)
+    return cum[:, :, min(days, cum.shape[-1]) - 1]
+
+
 def window_hours() -> int:
     return WINDOW

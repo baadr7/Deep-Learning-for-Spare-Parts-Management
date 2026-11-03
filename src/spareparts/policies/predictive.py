@@ -59,6 +59,7 @@ class PredictivePolicy(Policy):
     def decide(self, obs: Observation) -> Decisions:
         cum = self.predictor.cumulative(self.sim.telemetry_window(), obs)  # [M, K, H]
         risk = cum[:, :, self.pm_days - 1]
+        obs.risk = risk  # journalisé avec la journée par ``FleetSimulation.run``
         ratio = obs.age_unit / obs.pm_interval
         due = (risk >= self.pm_threshold) | (ratio >= self.age_factor)
         score = np.where(due, np.maximum(risk, ratio / self.age_factor - 1.0), np.nan)

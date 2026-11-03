@@ -1,0 +1,39 @@
+# Lancement local complet par Docker Compose (ENF-05) : API FastAPI et interface React.
+#   docker compose up --build      puis ouvrir http://localhost:5173
+#
+# Les modèles, rapports et données sont montés en lecture seule : ils restent produits par les
+# scripts d'entraînement sur la machine hôte et ne sont pas recopiés dans les images.
+services:
+  api:
+    build:
+      context: .
+    image: spareparts-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./configs:/app/configs:ro
+      - ./models:/app/models:ro
+      - ./reports:/app/reports:ro
+      - ./data:/app/data:ro
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./web
+    image: spareparts-web
+    ports:
+      - "5173:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped

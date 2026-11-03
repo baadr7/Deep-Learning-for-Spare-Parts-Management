@@ -38,11 +38,17 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scenario", default="s1_nominal")
     parser.add_argument("--seeds", type=int, nargs="+", default=[101, 102, 103])
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=None,
+        help="nombre de processus de simulation ; par défaut, tous les cœurs disponibles",
+    )
     args = parser.parse_args()
 
     combos = [dict(zip(GRID, values, strict=True)) for values in itertools.product(*GRID.values())]
     jobs = [(args.scenario, p, s) for p in combos for s in args.seeds]
-    with ProcessPoolExecutor() as pool:
+    with ProcessPoolExecutor(max_workers=args.workers) as pool:
         costs = list(pool.map(_cost, jobs))
     n = len(args.seeds)
     means = [float(np.mean(costs[i * n : (i + 1) * n])) for i in range(len(combos))]

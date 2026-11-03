@@ -12,6 +12,7 @@ import argparse
 import json
 import time
 
+from spareparts import tracking
 from spareparts.config import ROOT
 from spareparts.predict.dataset import PredictionData, simulate_dataset
 from spareparts.predict.training import (
@@ -70,39 +71,70 @@ def main() -> None:
     print(f"apprentissage {len(train)}, validation {len(val)}, test {len(test)}")
 
     results = {}
-    for name in args.models:
-        start = time.perf_counter()
-        out = ROOT / "models" / "predict"
-        if name == "lightgbm":
-            metrics = train_lightgbm(train, val, test)
-        elif args.evaluate_only:
-            import torch
+    with tracking.tracked(
+        "prediction",
+        {
+            "scenario": args.scenario,
+            "source": args.source,
+            "days": args.days,
+            "epochs": args.epochs,
+            "models": args.models,
+        },
+    ):
+        for name in args.models:
+            start = time.perf_counter()
+            out = ROOT / "models" / "predict"
+            if name == "lightgbm":
+                metrics = train_lightgbm(train, val, test)
+            elif args.evaluate_only:
+                import torch
 
-            from spareparts.predict.dataset import HORIZON
-            from spareparts.predict.models import ARCHITECTURES
+                from spareparts.predict.dataset import HORIZON
+                from spareparts.predict.models import ARCHITECTURES
 
-            model = ARCHITECTURES[name](5, train.static.shape[1], train.event_bin.shape[1], HORIZON)
-            model.load_state_dict(torch.load(out / f"{name}_{args.scenario}.pt"))
-            metrics = evaluate_network(model, val, test)
-        else:
-            import torch
+                model = ARCHITECTURES[name](
+                    5, train.static.shape[1], train.event_bin.shape[1], HORIZON
+                )
+                model.load_state_dict(torch.load(out / f"{name}_{args.scenario}.pt"))
+                metrics = evaluate_network(model, val, test)
+            else:
+                import torch
 
-            model, metrics = train_network(name, train, val, test, epochs=args.epochs)
-            out.mkdir(parents=True, exist_ok=True)
-            torch.save(model.state_dict(), out / f"{name}_{args.scenario}.pt")
-        metrics["duree_s"] = round(time.perf_counter() - start, 1)
-        results[name] = metrics
-        week = metrics["a_7_jours"]
-        print(
-            f"{name:9s} 24 h : rappel {metrics['rappel']:.3f}  F1 {metrics['f1']:.3f}  "
-            f"PR-AUC {metrics['pr_auc']:.3f} | 7 j : rappel {week['rappel']:.3f}  "
-            f"F1 {week['f1']:.3f}  PR-AUC {week['pr_auc']:.3f}"
+                model, metrics = train_network(name, train, val, test, epochs=args.epochs)
+                out.mkdir(parents=True, exist_ok=True)
+                weights = out / f"{name}_{args.scenario}.pt"
+                torch.save(model.state_dict(), weights)
+                tracking.register(f"predict_{name}", weights)
+            metrics["duree_s"] = round(time.perf_counter() - start, 1)
+            results[name] = metrics
+            week = metrics["a_7_jours"]
+            print(
+                f"{name:9s} 24 h : rappel {metrics['rappel']:.3f}  F1 {metrics['f1']:.3f}  "
+                f"PR-AUC {metrics['pr_auc']:.3f} | 7 j : rappel {week['rappel']:.3f}  "
+                f"F1 {week['f1']:.3f}  PR-AUC {week['pr_auc']:.3f}"
+            )
+
+        report = ROOT / "reports" / "metrics"
+        report.mkdir(parents=True, exist_ok=True)
+        path = report / f"prediction_{args.scenario}.json"
+        path.write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
+        tracking.log(
+            {
+                f"{name}_{label}": value
+                for name, m in results.items()
+                for label, value in (
+                    ("pr_auc_24h", m["pr_auc"]),
+                    ("f1_24h", m["f1"]),
+                    ("brier_24h", m["brier"]),
+                    ("ece_24h", m["ece"]),
+                    ("pr_auc_7j", m["a_7_jours"]["pr_auc"]),
+                    ("f1_7j", m["a_7_jours"]["f1"]),
+                    ("brier_7j", m["a_7_jours"]["brier"]),
+                    ("ece_7j", m["a_7_jours"]["ece"]),
+                )
+            }
         )
-
-    report = ROOT / "reports" / "metrics"
-    report.mkdir(parents=True, exist_ok=True)
-    path = report / f"prediction_{args.scenario}.json"
-    path.write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
+        tracking.artifact(path)
     print(f"métriques enregistrées dans {path}")
 
 

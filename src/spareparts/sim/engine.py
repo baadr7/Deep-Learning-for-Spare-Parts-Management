@@ -97,6 +97,13 @@ class DayRecord:
     running_hours: float
     events: list[dict]
     day_state: np.ndarray | None = None
+    # Désagrégation du coût de la journée par décision, pour la récompense par branche du BDQ
+    # (§ 6, amélioration 5) : coût attribuable à chaque machine (arrêt, main-d'œuvre, corrective,
+    # révision) et à chaque référence (stockage, commandes, urgences).
+    costs_machine: np.ndarray | None = None
+    costs_order: np.ndarray | None = None
+    costs_urgent: np.ndarray | None = None
+    costs_holding: np.ndarray | None = None
 
 
 def _lognormal(rng: np.random.Generator, mean: float, cv: float) -> float:
@@ -207,6 +214,11 @@ class FleetSimulation:
         cfg, rng = self.cfg, self.rng
         M, K, P = self.M, self.K, self.P
         self.state = np.zeros(M, dtype=np.int8)
+        # Séjours d'état (cahier des charges, § 4.4, table ``state_intervals``) : chaque passage
+        # d'une machine dans un état est horodaté (début, fin, durée, cause) dès qu'il s'achève.
+        self.state_intervals: list[dict] = []
+        self._state_start = np.zeros(M, dtype=float)
+        self._state_cause = ["état initial"] * M
         self.life = self.eta * rng.weibull(self.beta)
         self.drift_amp = self._draw_drift_amp((M, K))
         self._sig_drift = self._onehot * (self.drift * self.drift_amp)[:, :, None]
@@ -223,6 +235,12 @@ class FleetSimulation:
         self.events: list[dict] = []
         self._events_mark = 0
         self.costs = dict.fromkeys(COST_KEYS, 0.0)
+        # Cumuls désagrégés par décision, tenus en parallèle des coûts globaux : ils servent à la
+        # récompense par branche du BDQ et ne modifient pas les coûts agrégés.
+        self.cum_machine = np.zeros(M)
+        self.cum_order = np.zeros(P)
+        self.cum_urgent = np.zeros(P)
+        self.cum_holding = np.zeros(P)
 
         self.day = 0
         self.c_open = 0.0
@@ -291,6 +309,7 @@ class FleetSimulation:
         self._d_open = 0.0
         self._d_running = 0.0
         self._d_stock_value = 0.0
+        self._d_stock_part = np.zeros(self.P)
 
     # ------------------------------------------------------------------ outils
 
@@ -312,6 +331,52 @@ class FleetSimulation:
                 **info,
             }
         )
+
+    def _set_state(self, m: int, new_state: int, cause: str) -> None:
+        """Change l'état de la machine ``m`` en journalisant le séjour qui s'achève.
+
+        Chaque transition ferme le séjour courant (début, fin, durée, cause) puis en ouvre un
+        nouveau, de sorte que la durée de chaque étape du processus soit connue à chaque passage.
+        """
+        prev = int(self.state[m])
+        if prev == int(new_state):
+            return
+        now = float(self.env.now)
+        if self.log_events:
+            self.state_intervals.append(
+                {
+                    "machine": int(m),
+                    "state": prev,
+                    "start": round(float(self._state_start[m]), 3),
+                    "end": round(now, 3),
+                    "duration": round(now - float(self._state_start[m]), 3),
+                    "cause": self._state_cause[m],
+                }
+            )
+        self.state[m] = new_state
+        self._state_start[m] = now
+        self._state_cause[m] = cause
+
+    def _close_open_intervals(self) -> None:
+        """Ferme les séjours encore ouverts à l'instant courant (fin de simulation)."""
+        if not self.log_events:
+            return
+        now = float(self.env.now)
+        for m in range(self.M):
+            start = float(self._state_start[m])
+            if now <= start:
+                continue
+            self.state_intervals.append(
+                {
+                    "machine": int(m),
+                    "state": int(self.state[m]),
+                    "start": round(start, 3),
+                    "end": round(now, 3),
+                    "duration": round(now - start, 3),
+                    "cause": self._state_cause[m],
+                }
+            )
+            self._state_start[m] = now
 
     def unit_age(self) -> np.ndarray:
         return self.uage
@@ -347,13 +412,13 @@ class FleetSimulation:
             over &= op[:, None]
             for m in np.flatnonzero(over.any(axis=1)):
                 k = int(np.argmax(np.where(over[m], self.uage[m] / self.life[m], -1.0)))
-                self.state[m] = S.FAILED
+                self._set_state(m, S.FAILED, f"usure du composant {k}")
                 self.env.process(self._corrective(int(m), k))
                 changed = True
         if t >= self._next_overhaul_min:
             due = (self.state == _OP) & (t >= self.next_overhaul)
             for m in np.flatnonzero(due):
-                self.state[m] = S.PREVENTIVE
+                self._set_state(m, S.PREVENTIVE, "révision générale planifiée")
                 self.next_overhaul[m] = np.inf
                 self.env.process(self._overhaul(int(m)))
                 changed = True
@@ -372,8 +437,10 @@ class FleetSimulation:
         down = open_ & ~running
         self.down_hours += down
         self.costs["arret"] += float(self.hourly_margin @ down)
+        self.cum_machine += self.hourly_margin * down
         self._blk_run += running
         self._d_stock_value += float(self.stock @ self.unit_cost)
+        self._d_stock_part += self.stock * self.unit_cost
 
         if self.log_telemetry or self._win is not None:
             D = np.minimum(self.uage / self.life, 1.0)
@@ -440,7 +507,9 @@ class FleetSimulation:
         """Réparation ou maintenance préventive suivie du test, technicien mobilisé."""
         env, cfg = self.env, self.cfg
         work_state = S.REPAIR if corrective else S.PREVENTIVE
-        self.state[m] = work_state
+        self._set_state(
+            m, work_state, "réparation corrective" if corrective else "maintenance préventive"
+        )
         base = _lognormal(self.rng, self.repair_mean[m, k], self.repair_cv[m, k])
         if not corrective:
             base *= self.pm_ratio[m, k]
@@ -448,7 +517,7 @@ class FleetSimulation:
         yield env.timeout(hours)
         self._renew(m, k)
         while True:
-            self.state[m] = S.TEST
+            self._set_state(m, S.TEST, "contrôle après intervention")
             test = self._tri(cfg.durations.test)
             yield env.timeout(test)
             hours += test
@@ -456,15 +525,18 @@ class FleetSimulation:
                 break
             self.test_failures += 1
             self._log("echec_test", m, k)
-            self.state[m] = work_state
+            self._set_state(m, work_state, "reprise après échec du test")
             rework = base * cfg.durations.rework_fraction
             yield env.timeout(rework)
             hours += rework
         labor = hours * cfg.costs.labor_per_hour
         self.costs["main_oeuvre"] += labor
+        self.cum_machine[m] += labor
         if corrective:
             part_cost = self.unit_cost[self.part_of[m, k]]
-            self.costs["corrective"] += (cfg.costs.corrective_ratio - 1.0) * (labor + part_cost)
+            extra = (cfg.costs.corrective_ratio - 1.0) * (labor + part_cost)
+            self.costs["corrective"] += extra
+            self.cum_machine[m] += extra
         self.tech_busy_hours += hours
 
     def _corrective(self, m: int, k: int):
@@ -481,14 +553,14 @@ class FleetSimulation:
             self.stock[p] -= 1
         else:
             self.stockouts[p] += 1
-            self.state[m] = S.WAITING_PART
+            self._set_state(m, S.WAITING_PART, f"rupture de stock (réf. {p})")
             self._log("rupture", m, k, part=p)
             arrival = env.event()
             self.backorders[p].append(arrival)
             t0 = env.now
             yield arrival
             self.wait_part_hours += env.now - t0
-        self.state[m] = S.WAITING_TECH
+        self._set_state(m, S.WAITING_TECH, "attente d'un technicien")
         t0 = env.now
         with self.techs.request(priority=0) as req:
             yield req
@@ -496,7 +568,7 @@ class FleetSimulation:
             yield from self._intervene(m, k, corrective=True)
         self.n_corrective += 1
         self.corrective_downtime += env.now - t_fail
-        self.state[m] = S.OPERATIONAL
+        self._set_state(m, S.OPERATIONAL, "remise en service")
         self._log("remise_en_service", m, k)
 
     def _preventive(self, m: int, components: list[int]):
@@ -507,7 +579,7 @@ class FleetSimulation:
                 yield from self._intervene(m, k, corrective=False)
                 self.n_preventive += 1
                 self._log("fin_preventive", m, k)
-        self.state[m] = S.OPERATIONAL
+        self._set_state(m, S.OPERATIONAL, "fin de maintenance préventive")
 
     def _overhaul(self, m: int):
         spec = self._overhaul_spec[m]
@@ -523,11 +595,12 @@ class FleetSimulation:
                 self._renew(m, k)
         labor_hours = duration / 3.0
         self.costs["revision"] += cost + labor_hours * self.cfg.costs.labor_per_hour
+        self.cum_machine[m] += cost + labor_hours * self.cfg.costs.labor_per_hour
         self.tech_busy_hours += labor_hours
         self.n_overhauls += 1
         self.next_overhaul[m] = self.env.now + self.overhaul_interval[m]
         self._next_overhaul_min = float(self.next_overhaul.min())
-        self.state[m] = S.OPERATIONAL
+        self._set_state(m, S.OPERATIONAL, "fin de révision générale")
         self._log("fin_revision", m)
 
     def _order(self, p: int, qty: int, urgent: bool):
@@ -548,8 +621,10 @@ class FleetSimulation:
         }
         self.pipeline.append(record)
         self.costs["commandes"] += cfg.costs.order_fixed + qty * part.unit_cost
+        self.cum_order[p] += cfg.costs.order_fixed + qty * part.unit_cost
         if urgent:
             self.costs["urgences"] += qty * part.unit_cost * (cfg.costs.urgent_factor - 1.0)
+            self.cum_urgent[p] += qty * part.unit_cost * (cfg.costs.urgent_factor - 1.0)
         self._log("commande", part=p, qty=qty, urgent=urgent)
         yield env.timeout(delay)
         self.pipeline.remove(record)
@@ -633,7 +708,7 @@ class FleetSimulation:
                 self._log("maintenance_preventive", m, k)
             if kept:
                 free -= 1
-                self.state[m] = S.PREVENTIVE
+                self._set_state(m, S.PREVENTIVE, "maintenance préventive planifiée")
                 self.env.process(self._preventive(m, kept))
         return rejected
 
@@ -674,11 +749,18 @@ class FleetSimulation:
 
         self.stock_value_hours += self._d_stock_value
         self.costs["stockage"] += self._d_stock_value * cfg.costs.holding_rate / HOURS_PER_YEAR
+        self.cum_holding += self._d_stock_part * cfg.costs.holding_rate / HOURS_PER_YEAR
         return int(prod.sum()), n_def
 
     def advance_day(self, risk: np.ndarray | None = None) -> DayRecord:
         """Simule une journée complète et renvoie son bilan."""
         costs_before = dict(self.costs)
+        cum_before = (
+            self.cum_machine.copy(),
+            self.cum_order.copy(),
+            self.cum_urgent.copy(),
+            self.cum_holding.copy(),
+        )
         # Les décisions du matin sont journalisées avant l'appel : la journée commence au
         # premier événement qui suit la journée précédente.
         n_events = self._events_mark
@@ -688,6 +770,7 @@ class FleetSimulation:
         on_order = self.on_order()
         backorders = np.array([len(b) for b in self.backorders])
         day_costs = {k: self.costs[k] - costs_before[k] for k in COST_KEYS}
+        machine_before, order_before, urgent_before, holding_before = cum_before
         record = DayRecord(
             day=self.day,
             states=self.state.copy(),
@@ -700,6 +783,10 @@ class FleetSimulation:
             open_hours=self._d_open,
             running_hours=self._d_running,
             events=self.events[n_events:],
+            costs_machine=self.cum_machine - machine_before,
+            costs_order=self.cum_order - order_before,
+            costs_urgent=self.cum_urgent - urgent_before,
+            costs_holding=self.cum_holding - holding_before,
         )
         self._events_mark = len(self.events)
         # État dominant de la journée : l'état hors service le plus long s'il a duré au moins
@@ -735,7 +822,10 @@ class FleetSimulation:
         for _ in range(days):
             obs = self.observe()
             self.apply(policy.decide(obs))
-            record = self.advance_day()
+            # Une politique prédictive attache à l'observation le risque qui a motivé ses
+            # décisions ; il est journalisé avec le reste de la journée.
+            record = self.advance_day(risk=obs.risk)
             if on_day is not None:
                 on_day(record)
+        self._close_open_intervals()
         return build_result(self, policy)

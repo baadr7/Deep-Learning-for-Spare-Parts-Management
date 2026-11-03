@@ -1,0 +1,25 @@
+# Contexte de construction de l'image de l'API : on n'y met que ce que le serveur exige.
+.venv
+.git
+.github
+.pytest_cache
+.ruff_cache
+**/__pycache__
+*.py[cod]
+
+# Artefacts volumineux et régénérables, montés par Docker Compose au démarrage.
+data/raw
+data/interim
+data/processed
+models
+reports
+runs
+mlruns
+outputs
+
+# Interface web, documentation et divers.
+web
+docs
+*.pdf
+.DS_Store
+Thumbs.db

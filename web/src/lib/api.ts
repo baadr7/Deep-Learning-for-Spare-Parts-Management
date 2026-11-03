@@ -124,6 +124,87 @@ export type CompareResponse = {
 
 export type WhatIfResponse = { source: string; summary: Record<string, Interval> };
 
+export type TostVerdict = "équivalent" | "meilleur" | "moins bon" | "non concluant";
+
+export type TostResult = {
+  ecart_moyen: number;
+  marge: number;
+  marge_relative: number;
+  p_pas_pire: number;
+  p_pas_meilleur: number;
+  verdict: TostVerdict;
+};
+
+export type EvaluationReport =
+  | { available: false }
+  | {
+      available: true;
+      scenario: string;
+      replications: number;
+      days: number;
+      policies: string[];
+      tost_margin: number;
+      nominal: Record<string, Record<string, Interval>>;
+      wilcoxon_cout: Record<string, number>;
+      tost_cout: Record<string, TostResult>;
+      robustesse: Record<string, Record<string, Record<string, Interval>>>;
+      robustesse_wilcoxon: Record<string, Record<string, number>>;
+      robustesse_tost: Record<string, Record<string, TostResult>>;
+    };
+
+export type GeneralisationCase = {
+  nom: string;
+  techniciens: number;
+  part_U: number | null;
+  kendall_vs_nominal: number;
+  ordre_cdc: { conserve: boolean; controles: Record<string, boolean> };
+  cout_moyen: Record<string, number>;
+};
+
+export type GeneralisationReport =
+  | { available: false }
+  | {
+      available: true;
+      base: string;
+      replications: number;
+      days: number;
+      policies: string[];
+      transfert_agents: boolean;
+      cases: GeneralisationCase[];
+    };
+
+export type FloorSpace = {
+  methode: string;
+  n_actions: number;
+  exhaustif: boolean;
+  plancher: { cout_total: number };
+};
+
+export type FloorDecomposition = {
+  espace: string;
+  cout_agent: number;
+  cout_plancher: number;
+  cout_p1: number;
+  ecart_observe: number;
+  ecart_apprentissage: number;
+  ecart_representation: number;
+  part_apprentissage: number;
+};
+
+export type FloorReport =
+  | { available: false }
+  | {
+      available: true;
+      scenario: string;
+      replications: number;
+      days: number;
+      seeds: number[];
+      reference: string;
+      bornes: Record<string, number>;
+      espaces: Record<string, FloorSpace>;
+      decomposition: Record<string, FloorDecomposition>;
+    };
+
 export type SurrogateParams = {
   technicians: number;
   lead_time_factor: number;
@@ -188,6 +269,9 @@ export const api = {
   whatif: (body: { scenario: string; policy: string; overrides: Overrides }) =>
     request<WhatIfResponse>("/api/whatif", { method: "POST", body: JSON.stringify(body) }),
   dataSummary: () => request<DataSummary>("/api/data/summary"),
+  evaluation: () => request<EvaluationReport>("/api/evaluation"),
+  generalisation: () => request<GeneralisationReport>("/api/generalisation"),
+  plancher: () => request<FloorReport>("/api/plancher"),
   surrogate: () => request<SurrogateStatus>("/api/surrogate"),
   predictionMetrics: () => request<Record<string, Record<string, PredictionMetrics>>>("/api/models/prediction"),
   surrogatePredict: (params: SurrogateParams) =>

@@ -21,6 +21,7 @@ class SimulationResult:
     daily: dict[str, np.ndarray]
     events: list[dict]
     meta: dict = field(default_factory=dict)
+    state_intervals: list[dict] = field(default_factory=list)
 
     def to_summary(self) -> dict:
         return {
@@ -37,11 +38,14 @@ def compute_kpis(sim: FleetSimulation) -> dict[str, float]:
     hours = max(sim.env.now, 1.0)
     availability = sim.c_running / sim.c_open if sim.c_open else 1.0
     quality = 1.0 - sim.defects / sim.produced if sim.produced else 1.0
-    performance = 1.0
+    # Le TRS est le produit disponibilité x performance x qualité. La cadence est définie par heure
+    # de marche et ne dépend pas de l'usure (engine._flush produit cadence x heures de marche) : la
+    # production réelle égale donc la production théorique, la composante « performance » vaut 1 par
+    # construction et le TRS se réduit à disponibilité x qualité, comme les séries journalières.
     demands = int(sim.demands.sum())
     total_cost = float(sum(sim.costs.values()))
     return {
-        "trs": availability * performance * quality,
+        "trs": availability * quality,
         "disponibilite": availability,
         "qualite": quality,
         "taux_defauts": 1.0 - quality,
@@ -128,4 +132,5 @@ def build_result(sim: FleetSimulation, policy) -> SimulationResult:
         daily=daily,
         events=sim.events,
         meta=meta,
+        state_intervals=sim.state_intervals,
     )

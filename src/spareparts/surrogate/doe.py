@@ -11,7 +11,6 @@ from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
 import pandas as pd
-from scipy.stats import qmc
 
 from spareparts.config import load_scenario
 from spareparts.policies import FixedThresholdPolicy
@@ -35,12 +34,30 @@ OUTPUTS = [
 
 
 def sample(n: int, seed: int = 0) -> pd.DataFrame:
+    from scipy.stats import qmc
+
     unit = qmc.LatinHypercube(d=len(PARAMS), seed=seed).random(n)
     cols = {}
     for j, (name, (lo, hi, integer)) in enumerate(PARAMS.items()):
         v = lo + unit[:, j] * (hi - lo)
         cols[name] = np.rint(v).astype(int) if integer else np.round(v, 4)
     return pd.DataFrame(cols)
+
+
+def thresholds_from_factor(cfg, stock_factor: float) -> tuple[list[int], list[int]]:
+    """Seuils (s, S) obtenus en multipliant ceux du constructeur par un facteur global.
+
+    C'est la paramétrisation de politique du plan d'expériences : un seul facteur de stock décale
+    toutes les références à la fois. Elle est partagée par ``evaluate`` et par l'optimisation
+    bayésienne de P1, de sorte que le modèle de substitution prédise exactement le coût de la
+    politique reconstruite à partir de son optimum.
+    """
+    S = [max(1, round(p.S * stock_factor)) for p in cfg.parts]
+    s = [
+        min(max(0, round(p.s * stock_factor)), big - 1)
+        for p, big in zip(cfg.parts, S, strict=True)
+    ]
+    return s, S
 
 
 def evaluate(scenario: str, params: dict, seeds, days: int) -> dict[str, float]:
@@ -50,9 +67,7 @@ def evaluate(scenario: str, params: dict, seeds, days: int) -> dict[str, float]:
         lead_time_factor=float(params["lead_time_factor"]),
         failure_rate_factor=float(params["failure_rate_factor"]),
     )
-    f = float(params["stock_factor"])
-    S = [max(1, round(p.S * f)) for p in cfg.parts]
-    s = [min(max(0, round(p.s * f)), big - 1) for p, big in zip(cfg.parts, S, strict=True)]
+    s, S = thresholds_from_factor(cfg, float(params["stock_factor"]))
     runs = []
     for seed in seeds:
         policy = FixedThresholdPolicy(s=s, S=S, pm_factor=float(params["pm_factor"]), name="DOE")

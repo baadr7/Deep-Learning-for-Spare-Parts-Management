@@ -1,0 +1,32 @@
+{
+  "scenario": "s1_nominal",
+  "trials": 300,
+  "seeds": [
+    101,
+    102,
+    103
+  ],
+  "facteurs": {
+    "pm_factor": 1.2038428189398362,
+    "stock_factor": 2.1218347847133625
+  },
+  "cout_predit": 26818.078125,
+  "cout_p0": 57624.226414852696,
+  "cout_recherche_aleatoire": 53683.5120986111,
+  "cout_surrogate": 56457.022771039025,
+  "parametres": {
+    "s": [
+      13,
+      13,
+      4,
+      2
+    ],
+    "S": [
+      34,
+      34,
+      11,
+      6
+    ],
+    "pm_factor": 1.204
+  }
+}

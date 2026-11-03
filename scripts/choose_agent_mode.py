@@ -17,18 +17,27 @@ import yaml
 
 from spareparts.config import load_scenario
 from spareparts.policies import POLICY_LABELS, TUNED_DIR
-from spareparts.policies.learned import LEVEL_OF, LearnedPolicy, model_path
+from spareparts.policies.learned import LEVEL_OF, LearnedPolicy, model_meta, model_path
 from spareparts.sim import FleetSimulation
 
 
 def _cost(args) -> float:
     scenario, code, deterministic, seed = args
+    # L'agent peut avoir été entraîné avec l'observation enrichie (risque prédit, dérive du
+    # signal) : le codec doit alors être reconstruit à l'identique, sans quoi le vecteur
+    # d'observation n'aurait pas la dimension attendue par le réseau.
+    meta = model_meta(code, scenario)
     policy = LearnedPolicy(
         model_path(code, scenario),
         LEVEL_OF[code],
         name=code,
         label=POLICY_LABELS[code],
         deterministic=deterministic,
+        scenario=scenario,
+        use_risk=bool(meta.get("use_risk", False)),
+        use_drift=bool(meta.get("use_drift", False)),
+        risk_min=meta.get("risk_min"),
+        algo=meta.get("algo", "maskable_ppo"),
     )
     sim = FleetSimulation(load_scenario(scenario), seed=seed, log_events=False)
     return sim.run(policy).kpis["cout_total"]
@@ -39,11 +48,17 @@ def main() -> None:
     parser.add_argument("--scenario", default="s1_nominal")
     parser.add_argument("--agents", nargs="+", default=["P4", "P5"])
     parser.add_argument("--seeds", type=int, nargs="+", default=[101, 102, 103])
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=None,
+        help="nombre de processus de simulation ; par défaut, tous les cœurs disponibles",
+    )
     args = parser.parse_args()
 
     agents = [c for c in args.agents if model_path(c, args.scenario).exists()]
     jobs = [(args.scenario, c, d, s) for c in agents for d in (True, False) for s in args.seeds]
-    with ProcessPoolExecutor() as pool:
+    with ProcessPoolExecutor(max_workers=args.workers) as pool:
         costs = list(pool.map(_cost, jobs))
     n = len(args.seeds)
     for i, code in enumerate(agents):
