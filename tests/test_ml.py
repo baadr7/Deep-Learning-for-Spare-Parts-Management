@@ -197,6 +197,29 @@ def test_azure_dataset_does_not_leak_the_target(tmp_path, monkeypatch):
     assert set(np.unique(data.group)) == set(range(1, 13))
 
 
+def test_azure_normalization_uses_training_period_only(tmp_path, monkeypatch):
+    import pandas as pd
+
+    from spareparts.data import azure
+
+    monkeypatch.setattr(azure, "RAW_DIR", tmp_path)
+    write_azure_fixture(tmp_path)
+    from spareparts.predict.azure_dataset import build_azure_dataset
+
+    original = build_azure_dataset()
+    telemetry_path = tmp_path / "PdM_telemetry.csv"
+    telemetry = pd.read_csv(telemetry_path, parse_dates=["datetime"])
+    test_period = telemetry["datetime"] >= pd.Timestamp("2015-09-01")
+    telemetry.loc[test_period, ["volt", "rotate", "pressure", "vibration"]] += 10_000
+    telemetry.to_csv(telemetry_path, index=False)
+    changed_holdout = build_azure_dataset()
+
+    train = original.group <= 8
+    holdout = original.group >= 9
+    np.testing.assert_array_equal(original.seq[train], changed_holdout.seq[train])
+    assert not np.allclose(original.seq[holdout], changed_holdout.seq[holdout])
+
+
 def test_telemetry_window_matches_training_layout():
     sim = FleetSimulation(load_scenario("s1_nominal"), seed=3, log_events=False)
     sim.enable_window(48)

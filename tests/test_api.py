@@ -19,6 +19,26 @@ def test_health_and_catalogues(client):
     assert {"P0", "P1", "P2", "Oracle"} <= codes
 
 
+def test_cors_allows_only_the_local_web_methods(client):
+    origin = "http://localhost:5173"
+    allowed = client.options(
+        "/api/health",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert allowed.status_code == 200
+    assert allowed.headers["access-control-allow-origin"] == origin
+
+    denied = client.options(
+        "/api/health",
+        headers={"Origin": origin, "Access-Control-Request-Method": "DELETE"},
+    )
+    assert denied.status_code == 400
+
+
 def test_run_then_machine_detail(client):
     run = client.post("/api/runs", json={"policy": "P0", "days": 20, "seed": 3}).json()
     assert len(run["daily"]["trs"]) == 20
@@ -188,8 +208,30 @@ def test_live_stream_rejects_an_unknown_policy(client):
     from fastapi import WebSocketDisconnect
 
     # Le premier message porte le scénario et la politique : une politique inconnue fait fermer
-    # le canal avec le code 1003 (déconnexion applicative) avant toute diffusion.
+    # le canal avec le code 1008 (paramètres non acceptés) avant toute diffusion.
     with pytest.raises(WebSocketDisconnect):
         with client.websocket_connect("/api/ws/live") as ws:
             ws.send_json({"policy": "P9"})
             ws.receive_json()
+
+
+def test_live_stream_closes_when_initial_parameters_are_not_sent(client, monkeypatch):
+    from fastapi import WebSocketDisconnect
+
+    import spareparts.api.app as api
+
+    monkeypatch.setattr(api, "WS_INIT_TIMEOUT_SECONDS", 0.01)
+    with client.websocket_connect("/api/ws/live") as ws:
+        with pytest.raises(WebSocketDisconnect) as exc:
+            ws.receive_json()
+    assert exc.value.code == 1008
+
+
+def test_live_stream_rejects_out_of_range_parameters(client):
+    from fastapi import WebSocketDisconnect
+
+    with pytest.raises(WebSocketDisconnect) as exc:
+        with client.websocket_connect("/api/ws/live") as ws:
+            ws.send_json({"policy": "P0", "days": 731})
+            ws.receive_json()
+    assert exc.value.code == 1008

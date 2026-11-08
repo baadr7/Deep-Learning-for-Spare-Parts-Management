@@ -21,13 +21,15 @@ from spareparts.predict.dataset import HORIZON, WINDOW, PredictionData
 
 T0 = pd.Timestamp("2015-01-01 06:00:00")
 SIGNALS = azure.SIGNAL_COLUMNS
+AZURE_TRAIN_END = pd.Timestamp("2015-09-01")
 
 
 def _hours(ts: pd.Series) -> np.ndarray:
     return ((ts - T0) / pd.Timedelta(hours=1)).to_numpy()
 
 
-def build_azure_dataset() -> PredictionData:
+def build_azure_dataset(train_end: str | pd.Timestamp = AZURE_TRAIN_END) -> PredictionData:
+    """Construit le jeu Azure en ajustant la normalisation avant ``train_end`` exclusivement."""
     tel = azure.load("telemetry").sort_values(["machineID", "datetime"])
     machines = azure.load("machines").sort_values("machineID")
     errors, maint, failures = azure.load("errors"), azure.load("maint"), azure.load("failures")
@@ -36,7 +38,17 @@ def build_azure_dataset() -> PredictionData:
     M = len(ids)
     hours = int(_hours(tel["datetime"]).max()) + 1
     values = tel[SIGNALS].to_numpy(np.float32)
-    z = (values - values.mean(axis=0)) / values.std(axis=0)
+    cutoff = pd.Timestamp(train_end)
+    train_mask = tel["datetime"].lt(cutoff).to_numpy()
+    train_values = values[train_mask]
+    if train_values.size == 0:
+        raise ValueError(f"aucune télémétrie Azure antérieure à la coupure {cutoff}")
+    if not np.isfinite(train_values).all() or not np.isfinite(values).all():
+        raise ValueError("la télémétrie Azure contient des valeurs non finies")
+    mean = train_values.mean(axis=0)
+    scale = train_values.std(axis=0)
+    scale = np.where(scale > 0, scale, 1.0)
+    z = (values - mean) / scale
     signals = np.zeros((hours, M, 4), np.float32)
     signals[_hours(tel["datetime"]).astype(int), tel["machineID"].to_numpy() - 1] = z
 

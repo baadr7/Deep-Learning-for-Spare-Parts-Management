@@ -76,7 +76,7 @@ Données Azure ──▶ calibration des lois de durée de vie ──▶ simulat
                            ▼                                         ▼                          ▼
               modèles de prédiction (GRU/TCN/LSTM)      politiques (P0…P5, DQN, BDQ)      plan d'expériences
                            │                                         │                          │
-                           └──────────────▶ évaluation comparative ◀┘                          │
+                           └──────────────▶ évaluation comparative ◀─┘                          │
                                           (Wilcoxon, TOST ±2 %, IC)                             │
                                                      │                                          ▼
                                                      │                            modèle de substitution + Sobol
@@ -142,6 +142,13 @@ Ce jeu sert à la calibration des lois de durée de vie et à l'entraînement de
 sur données réelles ; il n'est pas versionné (voir `data/raw/.gitkeep`). Les fichiers dérivés du
 simulateur sont écrits dans `data/processed`.
 
+La standardisation des signaux Azure suit une règle stricte de non-fuite : la moyenne et l'écart-type
+sont estimés **uniquement sur la période d'apprentissage** (janvier à août 2015, antérieure au
+1er septembre), puis appliqués sans réajustement à la validation et au test. Les métriques Azure
+archivées dans `reports/metrics` proviennent de la campagne antérieure à cette correction ; elles
+doivent être régénérées avec `uv run python scripts/train_predictor.py --source azure --rebuild`
+lorsque les CSV bruts sont disponibles.
+
 ## 6. Lancement
 
 Dans un premier terminal, l'API :
@@ -199,7 +206,7 @@ L'API expose 16 routes HTTP et un WebSocket :
 | `/api/plancher` | GET | Plancher de l'espace d'action des agents |
 | `/api/surrogate` | GET | État et métriques du modèle de substitution |
 | `/api/surrogate/predict` | POST | Prédiction instantanée des indicateurs par le métamodèle |
-| `/api/ws/live` | WS | Diffusion d'une simulation en direct (`start`, `day`, `pause`, `resume`, `stop`) |
+| `/api/ws/live` | WS | Diffusion quotidienne en direct : premier message de paramètres (`scenario`, `policy`, `seed`, `days`, `speed`), puis commandes `pause`, `resume`, `speed`, `stop` ; le serveur renvoie `start`, une trame `day` par jour, puis `done` |
 
 ## 8. Reproduire les résultats
 
@@ -276,6 +283,14 @@ cd web && npm run e2e                  # parcours principal (Playwright, canal m
 Le seuil de couverture est fixé à **80 %** dans [`pyproject.toml`](pyproject.toml). La suite couvre
 le simulateur, les politiques, la prédiction, l'API et la cohérence entre le rapport LaTeX et ses
 données (`tests/test_report.py`).
+
+Le parcours Playwright et l'interface supposent par défaut l'API sur `http://127.0.0.1:8000`. Si
+ces ports sont déjà pris, l'API et le proxy Vite se redirigent par variable d'environnement :
+
+```bash
+SPAREPARTS_API_TARGET=http://127.0.0.1:8001 npm --prefix web run dev -- --port 5174
+PW_BASE_URL=http://127.0.0.1:5174 npm --prefix web run e2e
+```
 
 L'intégration continue ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) déclenche quatre
 tâches à chaque poussée sur `main` et à chaque demande de fusion :

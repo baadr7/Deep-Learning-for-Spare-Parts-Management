@@ -6,13 +6,14 @@ Lancement : uv run uvicorn spareparts.api.app:app --reload
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import uuid
 from collections import OrderedDict
 from concurrent.futures import ProcessPoolExecutor
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from spareparts import __version__
 from spareparts.api.serialize import jsonable, live_frame, machine_payload, run_payload
@@ -27,11 +28,12 @@ app = FastAPI(title="Spare Parts DL", version=__version__)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
 MAX_RUNS = 20
+WS_INIT_TIMEOUT_SECONDS = 30.0
 _runs: OrderedDict[str, SimulationResult] = OrderedDict()
 _pool: ProcessPoolExecutor | None = None
 
@@ -85,6 +87,15 @@ class WhatIfRequest(BaseModel):
     replications: int = Field(default=3, ge=1, le=10)
     days: int = Field(default=180, ge=30, le=365)
     overrides: Overrides = Overrides()
+
+
+class LiveRequest(BaseModel):
+    scenario: str = "s1_nominal"
+    policy: str = "P0"
+    seed: int = 1
+    days: int | None = Field(default=None, ge=1, le=730)
+    speed: float = Field(default=8, ge=0.5, le=60)
+    overrides: Overrides = Field(default_factory=Overrides)
 
 
 def _simulate_kpis(scenario: str, policy: str, seed: int, days, overrides: dict) -> dict:
@@ -344,20 +355,38 @@ async def live(ws: WebSocket) -> None:
     """
     await ws.accept()
     try:
-        params = await ws.receive_json()
-        scenario = params.get("scenario", "s1_nominal")
-        cfg = load_scenario(scenario, **(params.get("overrides") or {}))
-        policy = make_policy(params.get("policy", "P0"), scenario)
-    except (WebSocketDisconnect, FileNotFoundError, ValueError) as exc:
-        await ws.close(code=1003, reason=str(exc)[:120])
+        payload = await asyncio.wait_for(
+            ws.receive_json(), timeout=WS_INIT_TIMEOUT_SECONDS
+        )
+    except TimeoutError:
+        await ws.close(code=1008, reason="délai d'attente des paramètres dépassé")
         return
-    days = int(params.get("days") or cfg.horizon_days)
-    control = {"paused": False, "speed": float(params.get("speed", 8)), "stop": False}
+    except WebSocketDisconnect:
+        return
+    except ValueError as exc:
+        await ws.close(code=1008, reason=str(exc)[:120])
+        return
+
+    try:
+        params = LiveRequest.model_validate(payload)
+        scenario = params.scenario
+        cfg = load_scenario(
+            scenario, **params.overrides.model_dump(exclude_none=True)
+        )
+        policy = make_policy(params.policy, scenario)
+    except (ValidationError, FileNotFoundError, ValueError, HTTPException) as exc:
+        await ws.close(code=1008, reason=str(exc)[:120])
+        return
+    days = params.days or cfg.horizon_days
+    control = {"paused": False, "speed": params.speed, "stop": False}
 
     async def reader() -> None:
         try:
             while True:
                 msg = await ws.receive_json()
+                if not isinstance(msg, dict):
+                    control["stop"] = True
+                    return
                 action = msg.get("action")
                 if action == "pause":
                     control["paused"] = True
@@ -367,25 +396,25 @@ async def live(ws: WebSocket) -> None:
                     control["speed"] = max(0.5, min(float(msg.get("value", 8)), 60.0))
                 elif action == "stop":
                     control["stop"] = True
-        except (WebSocketDisconnect, RuntimeError):
+        except (WebSocketDisconnect, RuntimeError, TypeError, ValueError):
             control["stop"] = True
 
-    reader_task = asyncio.create_task(reader())
-    sim = FleetSimulation(cfg, seed=int(params.get("seed", 1)))
+    sim = FleetSimulation(cfg, seed=params.seed)
     policy.reset(sim)
-    await ws.send_json(
-        jsonable(
-            {
-                "type": "start",
-                "days": days,
-                "machines": sim.M,
-                "families": [sim.family_codes[f] for f in sim.family],
-                "parts": [p.model_dump() for p in cfg.parts],
-                "technicians": cfg.technicians,
-            }
-        )
-    )
+    reader_task = asyncio.create_task(reader())
     try:
+        await ws.send_json(
+            jsonable(
+                {
+                    "type": "start",
+                    "days": days,
+                    "machines": sim.M,
+                    "families": [sim.family_codes[f] for f in sim.family],
+                    "parts": [p.model_dump() for p in cfg.parts],
+                    "technicians": cfg.technicians,
+                }
+            )
+        )
         while sim.day < days and not control["stop"]:
             if control["paused"]:
                 await asyncio.sleep(0.1)
@@ -403,3 +432,5 @@ async def live(ws: WebSocket) -> None:
         pass
     finally:
         reader_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await reader_task

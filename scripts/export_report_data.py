@@ -159,12 +159,13 @@ def robustesse_effects(evaluation: dict) -> None:
                 continue
             change = 100 * effect["variation"]
             sign = "$+$" if change >= 0 else "$-$"
+            d_z = fr(effect["d_z"], 1) if effect["d_z"] is not None else r"\mathrm{n.d.}"
             interval = (
                 f"{fr(100 * effect['variation_low'], 1)} à {fr(100 * effect['variation_high'], 1)}"
             )
             cells.append(
                 f"\\makecell{{{sign}{fr(abs(change), 1)} ({interval}) \\\\ "
-                f"\\scriptsize $d_z={fr(effect['d_z'], 1)}$}}"
+                f"\\scriptsize $d_z={d_z}$}}"
             )
         rows.append(f"{code} & " + " & ".join(cells) + " \\\\")
     write_tex("tableau_robustesse_effets.tex", rows)
@@ -248,7 +249,7 @@ def sobol_table(sobol: dict) -> None:
 
 
 def composition_label(name: str) -> str:
-    """Nom court d'une composition de flotte : « Nominale », « C0 », « C1 », \dots"""
+    r"""Nom court d'une composition de flotte : « Nominale », « C0 », « C1 », \dots"""
     return "Nominale" if name == "nominal" else f"C{int(name.rsplit('_', 1)[1])}"
 
 

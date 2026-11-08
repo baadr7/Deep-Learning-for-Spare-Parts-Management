@@ -46,7 +46,8 @@ def main() -> None:
 
     if args.source == "azure":
         args.scenario = "azure"
-        cache = ROOT / "data" / "processed" / "predict_azure.npz"
+        # Versionné pour ne pas réutiliser silencieusement un cache normalisé sur le test.
+        cache = ROOT / "data" / "processed" / "predict_azure_trainnorm_20150901.npz"
     else:
         cache = ROOT / "data" / "processed" / f"predict_{args.scenario}_{args.days}j.npz"
     if cache.exists() and not args.rebuild:

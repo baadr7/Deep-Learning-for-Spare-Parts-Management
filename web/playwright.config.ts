@@ -7,7 +7,7 @@ export default defineConfig({
   testDir: "e2e",
   timeout: 60_000,
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: process.env.PW_BASE_URL ?? "http://localhost:5173",
     channel: "msedge",
     viewport: { width: 1440, height: 1000 },
   },

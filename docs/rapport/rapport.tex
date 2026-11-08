@@ -157,6 +157,7 @@
 \begin{document}
 
 % ================================================================ Page de garde
+\hypersetup{pageanchor=false}
 \begin{titlepage}
 \begin{tikzpicture}[remember picture,overlay]
   \fill[primaire] (current page.north west) rectangle ([xshift=1.3cm]current page.south west);
@@ -164,12 +165,16 @@
 \end{tikzpicture}
 \sffamily
 \vspace*{0.3cm}
+\begin{center}
+\includegraphics[width=8cm]{figures/ensam-logo.png}
+\end{center}
+\vspace{0.25cm}
 {\small\color{gris}\addfontfeatures{LetterSpace=6}UNIVERSITÉ MOULAY ISMAÏL}\par
 \vspace{3pt}
 {\small\color{gris}\addfontfeatures{LetterSpace=3}ÉCOLE NATIONALE SUPÉRIEURE D'ARTS ET MÉTIERS, MEKNÈS}\par
 \vspace{3pt}
 {\small\color{gris}Intelligence Artificielle \& Technologies des Données, Systèmes Industriels (IATD-SI)\par}
-\vspace{4.4cm}
+\vspace{2.8cm}
 {\color{accent}\rule{2.4cm}{2.5pt}}\par
 \vspace{0.7cm}
 {\affiche\fontsize{34}{40}\selectfont\color{primaire}Rapport de projet}\par
@@ -191,6 +196,7 @@
 \vspace*{0.3cm}
 \end{titlepage}
 
+\hypersetup{pageanchor=true}
 \pagenumbering{roman}
 \pagestyle{liminaires}
 
@@ -394,6 +400,14 @@ Chaque exemple décrit une machine au début d'une journée : une fenêtre de 48
 \item \textbf{Données simulées} : cinq années de la flotte S1 sous la politique P0, soit 181\,000 exemples ; trois années servent à l'apprentissage, une à la validation et une au test. Seules 0,13~\% des machines-jours connaissent une panne dans les 24 heures.
 \item \textbf{Données réelles} : 36\,300 exemples tirés d'Azure, avec le nombre d'erreurs à la place de l'indicateur de marche et le temps écoulé depuis le dernier remplacement de chaque composant. Le découpage est temporel, comme le prévoit le protocole : janvier à août pour l'apprentissage, septembre et octobre pour la validation, novembre et décembre pour le test.
 \end{itemize}
+
+La moyenne et l'écart-type utilisés pour normaliser les quatre signaux Azure sont calculés
+uniquement sur la période d'apprentissage (janvier à août), puis appliqués sans réajustement aux
+périodes de validation et de test. Cette règle évite que la distribution des périodes évaluées
+influence le prétraitement. Les métriques chiffrées ci-dessous proviennent toutefois des artefacts
+de la campagne antérieure à cette correction. Les CSV bruts d'Azure n'étant pas présents dans le
+dépôt, les modèles n'ont pas pu être réentraînés lors de cette révision ; ces tableaux devront être
+régénérés avec le prétraitement corrigé avant le gel d'une version définitive du rapport.
 
 Un remplacement daté de l'instant de prédiction trahit une panne enregistrée au même instant : le temps écoulé depuis le dernier remplacement ne compte donc que les remplacements strictement antérieurs. Un test automatique vérifie l'absence de cette fuite.
 
@@ -758,12 +772,15 @@ lorsqu'elle est défavorable, comme l'optimisation sur modèle de substitution.
 4~nov.~2026 & Couverture des tests & Campagne de tests : la suite passe de 82 à 128 tests, aucun ignoré, et la couverture de 85,50~\% à 94,19~\%, au-dessus du seuil de 80~\%. \\
 \addlinespace
 4~nov.~2026 & Compilation du rapport & Le binaire XeLaTeX plante dans l'environnement d'automatisation ; la compilation du PDF est déléguée au job « Rapport (XeLaTeX) » de la chaîne d'intégration. \\
+\addlinespace
+8~nov.~2026 & Revue de robustesse & Normalisation Azure restreinte à la seule période d'apprentissage, WebSocket borné par un délai d'attente et fermé proprement, CORS limité aux origines locales, taille d'effet $d_z$ déclarée non estimable au lieu de nulle, invariant de révision rendu explicite sous \texttt{python -O}. La suite compte désormais 136 tests, aucun ignoré, pour une couverture de 93,91~\%. \\
 \bottomrule
 \end{tabularx}
 
-L'état final est celui du 4~novembre~2026 : les agents publiés sont les modèles retenus à l'issue
-des campagnes d'apprentissage, les artefacts du rapport sont régénérés à partir de ces modèles, et
-la suite de tests est verte. Le détail des commandes figure dans la section précédente, celui des
+L'état final est celui du 8~novembre~2026 : les agents publiés sont les modèles retenus à l'issue
+des campagnes d'apprentissage, les artefacts du rapport sont régénérés à partir de ces modèles, la
+suite de tests est verte et le PDF est compilé sans erreur.
+Le détail des commandes figure dans la section précédente, celui des
 plages de graines dans la section~\ref{sec:graines}.
 
 \chapter{Dictionnaire des données}\label{sec:dictionnaire-annexe}

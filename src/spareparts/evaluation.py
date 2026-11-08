@@ -50,7 +50,7 @@ def paired_effects(
     reference: str = "nominal",
     key: str = "cout_total",
     level: float = 0.95,
-) -> dict[str, dict[str, dict[str, float]]]:
+) -> dict[str, dict[str, dict[str, float | None]]]:
     """Écart apparié de chaque politique à la situation de référence, avec IC et taille d'effet.
 
     Toutes les politiques affrontent les mêmes graines dans toutes les situations : la différence
@@ -88,7 +88,8 @@ def paired_effects(
                 "variation": mean / centre if centre else float("nan"),
                 "variation_low": (mean - half) / centre if centre else float("nan"),
                 "variation_high": (mean + half) / centre if centre else float("nan"),
-                "d_z": mean / spread if spread else 0.0,
+                # Sans dispersion mesurable, Cohen d_z n'est pas estimable.
+                "d_z": mean / spread if spread else None,
             }
     return out
 

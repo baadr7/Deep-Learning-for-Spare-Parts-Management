@@ -60,7 +60,14 @@ def test_single_seed_yields_a_zero_interval():
     effect = paired_effects(runs)["délais doublés"]["P1"]
     assert effect["moyenne"] == 20.0
     assert effect["low"] == effect["high"] == 20.0
-    assert effect["d_z"] == 0.0
+    assert effect["d_z"] is None
+
+
+def test_paired_effect_size_is_unavailable_when_all_differences_are_identical():
+    runs = _runs([100.0, 200.0, 300.0], [110.0, 210.0, 310.0])
+    effect = paired_effects(runs)["délais doublés"]["P1"]
+    assert effect["moyenne"] == 10.0
+    assert effect["d_z"] is None
 
 
 def difference_ratio(differences: np.ndarray) -> float:

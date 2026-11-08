@@ -583,7 +583,8 @@ class FleetSimulation:
 
     def _overhaul(self, m: int):
         spec = self._overhaul_spec[m]
-        assert spec is not None
+        if spec is None:
+            raise RuntimeError(f"révision déclenchée sans spécification pour la machine {m}")
         days, cost = spec
         self._log("revision", m)
         with self.techs.request(priority=1) as req:

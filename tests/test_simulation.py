@@ -85,6 +85,13 @@ def test_azure_trace_replay_runs_on_a_tiny_schedule():
     assert result.kpis["maintenances_preventives"] == 3
 
 
+def test_overhaul_without_a_specification_raises_explicit_error(cfg):
+    sim = FleetSimulation(cfg, seed=0)
+    sim._overhaul_spec[0] = None
+    with pytest.raises(RuntimeError, match="sans spécification"):
+        next(sim._overhaul(0))
+
+
 def test_orders_arrive_and_refill_stock(cfg):
     sim = FleetSimulation(cfg, seed=1, log_events=True)
     sim.apply(Decisions(urgent={0: 5}))

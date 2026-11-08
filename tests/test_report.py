@@ -77,6 +77,13 @@ def test_every_file_referenced_by_the_report_exists():
     assert not missing, "fichiers référencés par le rapport et absents : " + ", ".join(missing)
 
 
+def test_cover_uses_the_ensam_logo_and_documents_leak_free_scaling():
+    cover = (RAPPORT / "rapport.tex").read_text(encoding="utf-8")
+    assert r"\includegraphics[width=8cm]{figures/ensam-logo.png}" in cover
+    assert "uniquement sur la période d'apprentissage" in cover
+    assert (RAPPORT / "figures" / "ensam-logo.png").is_file()
+
+
 def test_every_generated_table_is_included_in_the_report():
     # Les tableaux du chapitre d'évaluation et l'analyse de sensibilité sont le corps du rapport :
     # les produire sans les inclure laisserait le lecteur devant une affirmation non étayée.
@@ -125,6 +132,24 @@ def test_smooth_episodes_smooths_on_the_last_twenty_episodes(tmp_path):
     # troisième, où la moyenne ne porte que sur les épisodes déjà joués.
     assert values[-1] == pytest.approx(sum(365 * k / 100 for k in range(6, 26)) / 20, abs=0.05)
     assert values[2] == pytest.approx((1 + 2 + 3) * 365 / 100 / 3, abs=0.05)
+
+
+def test_robustness_table_marks_unestimable_effect_size(tmp_path, monkeypatch):
+    effect = {
+        "variation": 0.1,
+        "variation_low": 0.05,
+        "variation_high": 0.15,
+        "d_z": None,
+    }
+    monkeypatch.setattr(export, "OUT", tmp_path)
+    monkeypatch.setattr(
+        export,
+        "paired_effects",
+        lambda _: {"délai fournisseur doublé": {"P0": effect}},
+    )
+    export.robustesse_effects({"runs": {"nominal": {"P0": []}}})
+    table = (tmp_path / "tableau_robustesse_effets.tex").read_text(encoding="utf-8")
+    assert r"$d_z=\mathrm{n.d.}$" in table
 
 
 def test_generalisation_table_lists_every_composition(tmp_path, monkeypatch):
@@ -230,4 +255,3 @@ def test_environments_open_and_close_in_balance():
         assert collections.Counter(BEGIN.findall(text)) == collections.Counter(END.findall(text)), (
             f"environnements \\begin/\\end déséquilibrés dans {name}"
         )
-
