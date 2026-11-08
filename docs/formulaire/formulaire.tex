@@ -1,0 +1,1221 @@
+% Formulaire du projet Deep Learning for Spare Parts Management
+% Formules mises en œuvre dans le dépôt et hypothèses dont dépend la fonction objectif.
+% Compilation : latexmk -xelatex formulaire.tex
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath}
+\usepackage{fontspec}
+\usepackage{unicode-math}
+\usepackage[french]{babel}
+\frenchsetup{StandardLists=true}
+
+\IfFontExistsTF{Palatino Linotype}
+  {\setmainfont{Palatino Linotype}}
+  {\setmainfont{TeX Gyre Pagella}}
+\IfFontExistsTF{Segoe UI}
+  {\setsansfont{Segoe UI}[BoldFont={Segoe UI Semibold}]}
+  {\setsansfont{TeX Gyre Heros}}
+\IfFontExistsTF{Segoe UI Light}
+  {\newfontfamily\affiche{Segoe UI Light}}
+  {\newfontfamily\affiche{TeX Gyre Heros}}
+\IfFontExistsTF{Cambria Math}
+  {\setmathfont{Cambria Math}}
+  {\setmathfont{TeX Gyre Pagella Math}}
+
+\usepackage[top=2.5cm,bottom=2.5cm,left=2.4cm,right=2.4cm,headheight=15pt,headsep=0.7cm,footskip=1.1cm]{geometry}
+\usepackage{xcolor}
+\definecolor{primaire}{HTML}{1F3B57}
+\definecolor{accent}{HTML}{C0602E}
+\definecolor{fond}{HTML}{EEF2F6}
+\definecolor{gris}{HTML}{6F7C89}
+
+\usepackage{microtype}
+\usepackage{setspace}
+\setstretch{1.1}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.5em}
+\setlength{\emergencystretch}{3em}
+
+\usepackage{titlesec}
+\usepackage{titletoc}
+\usepackage{fancyhdr}
+\usepackage{booktabs,tabularx,array,ragged2e,ltablex}
+\keepXColumns
+\setlength{\LTpre}{0.5em}
+\setlength{\LTpost}{0.8em}
+\usepackage{enumitem}
+\usepackage{needspace}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{tikz}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=primaire,citecolor=accent,urlcolor=accent,
+  pdftitle={Formulaire du projet, Deep Learning for Spare Parts Management},
+  pdfauthor={MA Bilal et Adam Elmadani}}
+\urlstyle{same}
+
+\numberwithin{equation}{section}
+
+% ---------------------------------------------------------------- Titres
+\titleformat{\section}{\sffamily\fontsize{16}{19}\selectfont\color{primaire}}
+  {\textcolor{accent}{\thesection}}{0.7em}{}[\nopagebreak\vspace{-0.3em}\nopagebreak{\color{primaire!18}\titlerule[0.7pt]}]
+\titlespacing*{\section}{0pt}{1.8em}{0.9em}
+\titleformat{\subsection}{\sffamily\bfseries\fontsize{12}{14.5}\selectfont\color{primaire}}
+  {\thesubsection}{0.7em}{}
+\titlespacing*{\subsection}{0pt}{1.3em}{0.35em}
+\newcommand{\intertitre}[1]{\par\needspace{4\baselineskip}\vspace{0.25em}{\sffamily\bfseries\leavevmode\color{primaire}#1}\par\nopagebreak\vspace{-0.25em}}
+% Titre d'un groupe d'hypothèses, placé dans le premier en-tête du tableau pour ne jamais en être séparé.
+\newcommand{\groupetitre}[1]{{\normalsize\sffamily\bfseries\color{accent}#1}}
+
+% Le sommaire imprimé s'arrête aux sections ; les signets du PDF descendent aux sous-sections.
+\setcounter{tocdepth}{1}
+\hypersetup{bookmarksdepth=2}
+\titlecontents{section}[1.8em]{\addvspace{7pt}\sffamily\color{primaire}}
+  {\contentslabel{1.8em}}{}{\titlerule*[0.7pc]{.}\contentspage}[\addvspace{1pt}]
+\titlecontents{subsection}[4.0em]{\small}
+  {\contentslabel{2.2em}}{}{\titlerule*[0.7pc]{.}\contentspage}
+
+% ---------------------------------------------------------------- En-têtes
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\sffamily\footnotesize\color{gris}Formulaire du projet}
+\fancyhead[R]{\sffamily\footnotesize\color{gris}\nouppercase{\leftmark}}
+\fancyfoot[L]{\sffamily\footnotesize\color{gris}ENSAM Meknès \quad·\quad 2026-2027}
+\fancyfoot[R]{\sffamily\footnotesize\color{gris}\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\sectionmark}[1]{\markboth{#1}{}}
+
+\setlist{itemsep=0.2em,topsep=0.3em,leftmargin=1.4em}
+\setlist[itemize,1]{label={\textcolor{accent}{\small\textbullet}}}
+
+\renewcommand{\arraystretch}{1.28}
+\newcolumntype{L}{>{\RaggedRight\arraybackslash}X}
+\newcolumntype{P}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+\newcommand{\hd}[1]{\leavevmode{\sffamily\bfseries\color{primaire}#1}}
+\setlength{\heavyrulewidth}{0.9pt}
+\setlength{\lightrulewidth}{0.4pt}
+
+% Encadré des définitions centrales
+\newtcolorbox{encadre}{enhanced,breakable,colback=fond,colframe=accent,boxrule=0pt,
+  leftrule=2.6pt,arc=0pt,outer arc=0pt,left=10pt,right=10pt,top=5pt,bottom=5pt,
+  before skip=0.9em,after skip=0.9em}
+
+% Fichier du dépôt qui calcule la formule
+\newcommand{\source}[1]{\par\nopagebreak[4]\vspace{-0.15em}\nopagebreak[4]{\RaggedRight\sffamily\footnotesize\leavevmode\color{gris}Calcul :~\detokenize{#1}\par}}
+
+% Opérateurs
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator{\clip}{clip}
+\DeclareMathOperator{\Bin}{Bin}
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\LN}{LN}
+\DeclareMathOperator{\Tri}{Tri}
+\DeclareMathOperator{\Gam}{Gamma}
+\DeclareMathOperator{\Pois}{Poisson}
+\DeclareMathOperator{\Unif}{U}
+\DeclareMathOperator{\ReLU}{ReLU}
+\DeclareMathOperator{\SiLU}{SiLU}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\ind}{\mathbb{1}}
+\newcommand{\OP}{\mathrm{OP}}
+\newcommand{\IP}{\mathrm{IP}}
+
+\begin{document}
+
+% ================================================================ Couverture
+\begin{titlepage}
+\begin{tikzpicture}[remember picture,overlay]
+  \fill[primaire] (current page.north west) rectangle ([xshift=1.3cm]current page.south west);
+  \fill[accent] ([xshift=1.3cm]current page.north west) rectangle ([xshift=1.42cm]current page.south west);
+\end{tikzpicture}
+\sffamily
+\vspace*{0.3cm}
+{\small\color{gris}\addfontfeatures{LetterSpace=3}ÉCOLE NATIONALE SUPÉRIEURE D'ARTS ET MÉTIERS, MEKNÈS}\par
+\vspace{3pt}
+{\small\color{gris}Intelligence Artificielle \& Technologies des Données, Systèmes Industriels (IATD-SI)\par}
+\vspace{4.6cm}
+{\color{accent}\rule{2.4cm}{2.5pt}}\par
+\vspace{0.7cm}
+{\affiche\fontsize{34}{40}\selectfont\color{primaire}Formulaire du projet}\par
+\vspace{0.5cm}
+{\fontsize{17}{21}\selectfont\color{primaire!80}Deep Learning for Spare Parts Management}\par
+\vspace{0.45cm}
+\parbox{13cm}{\rmfamily\large\itshape\color{gris!80!black}Les formules mises en œuvre dans le dépôt, et les hypothèses dont dépend la fonction objectif}\par
+\vfill
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{@{}l@{\hspace{1.2cm}}l@{}}
+\textcolor{gris}{Réalisé par} & MA Bilal \\
+ & Adam Elmadani \\
+\textcolor{gris}{Encadré par} & Pr. Aziza Belmaati \\
+ & Pr. Oumaima Bounou \\
+\textcolor{gris}{Document associé} & Rapport de projet, version 1.0 \\
+\textcolor{gris}{Version} & 1.0, novembre 2026 \\
+\end{tabular}
+\vspace*{0.3cm}
+\end{titlepage}
+
+% ================================================================ Avant-propos et sommaire
+\thispagestyle{plain}
+{\sffamily\fontsize{18}{22}\selectfont\color{primaire}Avant-propos}\par
+\vspace{0.2em}{\color{accent}\rule{2.2cm}{2.2pt}}\par\vspace{0.8em}
+
+Ce formulaire rassemble les formules que le dépôt calcule réellement, dans la forme où le code les applique, puis les hypothèses dont dépend la fonction objectif, c'est-à-dire le coût total annuel que toutes les politiques cherchent à réduire. Il complète le rapport, qui présente les résultats, et le cahier des charges, qui fixe les exigences. Lorsqu'une valeur du code s'écarte de ce que prévoyait le cahier des charges, c'est la valeur du code qui figure ici, et l'écart est signalé.
+
+Sauf mention contraire, les valeurs numériques sont celles du scénario S1 nominal (\nolinkurl{configs/scenarios/s1_nominal.yaml}). Les coûts sont exprimés en unités relatives (UR), 1~UR valant le prix d'une pièce catalogue, et les temps en heures. Sous chaque groupe de formules, une ligne grise indique le fichier qui les calcule.
+
+La section~\ref{sec:objectif} est le cœur du document : elle définit la fonction objectif terme à terme puis recense, en section~\ref{sec:hypotheses}, les hypothèses qui en fixent la forme et la loi. Les sections suivantes reprennent les formules module par module, dans l'ordre de la chaîne expérimentale.
+
+\vspace{1.2em}
+{\sffamily\bfseries\color{primaire}Sommaire}\par\vspace{-0.6em}
+\makeatletter\@starttoc{toc}\makeatother
+
+\clearpage
+
+% ================================================================ 1
+\section{Conventions et notations}\label{sec:notations}
+
+\begin{tabularx}{\linewidth}{@{}P{3.9cm} L@{}}
+\toprule
+\hd{Symbole} & \hd{Signification} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Symbole} & \hd{Signification} \\
+\midrule
+\endhead
+$i = 1,\dots,M$ & Machine de la flotte, $M = 100$ \\
+$k = 1,\dots,K$ & Composant d'une machine, $K = 4$ : roulement, joints, pièce usinée, moteur \\
+$p = 1,\dots,P$ & Référence de pièce, $P = 4$ ; $p(i,k)$ est la référence consommée par le composant $k$ de la machine $i$ \\
+$t$ & Temps du simulateur en heures ; $t = 0$ au début du premier poste du jour 0 \\
+$\tau$ & Jour de décision, $\tau = 0,\dots,364$ \\
+$\omega$ & Réalisation des aléas d'une année, fixée par la graine de simulation \\
+$\pi$, $\Pi$ & Politique de gestion, ensemble des politiques admissibles \\
+$n_i$, $\delta_i$ & Nombre de postes de 8~h de la machine $i$ et taux d'ouverture $\delta_i = 8n_i/24$ \\
+$\sigma_i(t)$ & État de la machine : opérationnelle ($\OP$), en panne, attente pièce, attente technicien, réparation, préventive, test \\
+$o_i(t)$, $m_i(t)$ & Indicateurs d'ouverture et de marche (machine ouverte et opérationnelle) \\
+$a_{ik}(t)$ & Âge du composant, dans l'unité de son régime : heures de marche ou heures calendaires \\
+$L_{ik}$ & Durée de vie tirée à la pose du composant \\
+$D_{ik} = \min(a_{ik}/L_{ik},\,1)$ & Dégradation du composant \\
+$T_k$, $\rho_{ik}$ & Intervalle de maintenance constructeur et avancement $\rho_{ik} = a_{ik}/T_k$ \\
+$\beta_k$, $\eta_k$ & Paramètres de forme et d'échelle de la loi de Weibull \\
+$I_p$, $O_p$, $B_p$ & Stock physique, quantité en commande, demandes en attente \\
+$\IP_p = I_p + O_p - B_p$ & Position de stock \\
+$c_p$ & Prix unitaire : 1, 1, 50 et 200~UR \\
+$\ell_p$ & Délai fournisseur moyen en jours : 5, 5, 31 et 42 (urgent : 1, 1, 7 et 10) \\
+$(s_p, S_p)$ & Point de commande et niveau de recomplètement \\
+$C(\pi,\omega)$ & Coût total d'une année simulée, en UR \\
+$J(\pi)$ & Fonction objectif : espérance de $C(\pi,\omega)$ \\
+$\ind[\cdot]$ & Indicatrice, égale à 1 si la condition est vraie \\
+\bottomrule
+\end{tabularx}
+
+% ================================================================ 2
+\clearpage
+\section{La fonction objectif}\label{sec:objectif}
+
+\subsection{Définition}
+
+Toutes les politiques, des seuils fixes aux agents d'apprentissage par renforcement, sont comparées sur une seule grandeur : le coût total d'une année d'exploitation de la flotte. Pour une politique $\pi$ et une réalisation $\omega$ des aléas (durées de vie, délais, durées d'intervention, défauts), le simulateur renvoie la somme de neuf postes.
+
+\begin{encadre}
+\begin{equation}\label{eq:cout-total}
+C(\pi,\omega) = C_{\mathrm{stock}} + C_{\mathrm{cmd}} + C_{\mathrm{urg}} + C_{\mathrm{mo}} + C_{\mathrm{corr}} + C_{\mathrm{arr}} + C_{\mathrm{reb}} + C_{\mathrm{ret}} + C_{\mathrm{rev}}
+\end{equation}
+\begin{equation}\label{eq:objectif}
+J(\pi) = \E_{\omega}\big[\,C(\pi,\omega)\,\big],
+\qquad
+\pi^{\star} = \argmin_{\pi \in \Pi} J(\pi)
+\quad\text{sous}\quad A(\pi) \geq A(\pi_{\mathrm{P1}})
+\end{equation}
+\end{encadre}
+
+La contrainte de disponibilité $A(\pi) \geq A(\pi_{\mathrm{P1}})$ vient du critère O4 du cahier des charges. Elle n'entre dans aucun calcul d'optimisation : elle est vérifiée après coup, sur les résultats. Dans l'objectif lui-même, la disponibilité ne pèse que par le coût d'arrêt \eqref{eq:arret}, qui valorise chaque heure perdue à la marge de production.
+\source{src/spareparts/sim/engine.py (COST_KEYS) ; src/spareparts/sim/results.py}
+
+\subsection{Les neuf postes de coût}
+
+\intertitre{Stockage}
+La valeur du stock physique est relevée chaque heure et facturée au taux de possession annuel $h$ :
+\begin{equation}\label{eq:stockage}
+C_{\mathrm{stock}} = \frac{h}{8\,760} \sum_{t=0}^{8\,759} \sum_{p=1}^{P} c_p\, I_p(t), \qquad h = 0{,}25~\text{an}^{-1}.
+\end{equation}
+
+\intertitre{Commandes et urgences}
+Chaque commande $o$, normale ou urgente, de $q_o$ pièces de la référence $p_o$ paie un coût fixe et le prix des pièces, au moment où elle est passée ; une commande urgente paie en outre une surprime :
+\begin{align}
+C_{\mathrm{cmd}} &= \sum_{o \in \mathcal{O}} \big( c_f + q_o\, c_{p_o} \big), & c_f &= 2~\text{UR}, \label{eq:commandes}\\
+C_{\mathrm{urg}} &= (u-1) \sum_{o \in \mathcal{O}_u} q_o\, c_{p_o}, & u &= 2{,}5. \label{eq:urgences}
+\end{align}
+Une pièce commandée en urgence revient donc à $u\,c_p + c_f/q_o$.
+
+\intertitre{Main-d'œuvre}
+Une intervention $x$ sur le composant $k$ (corrective ou préventive) mobilise un technicien pendant
+\begin{equation}\label{eq:duree-intervention}
+H_x = \Sigma_x + B_x + \sum_{r=0}^{R_x} \Theta_{x,r} + R_x\, \varphi\, B_x,
+\end{equation}
+où $\Sigma_x \sim \Tri(0{,}25 ; 0{,}5 ; 1)$ est la sortie magasin, $B_x \sim \LN(m_k, \mathrm{cv}_k)$ la durée de base (multipliée par $0{,}6$ pour une préventive), $\Theta_{x,r} \sim \Tri(1 ; 1{,}5 ; 2)$ la durée de chaque test, $R_x$ le nombre de tests échoués et $\varphi = 0{,}3$ la fraction de reprise. Seules ces heures sont payées :
+\begin{equation}\label{eq:main-oeuvre}
+C_{\mathrm{mo}} = w \sum_{x \in \mathcal{X}} H_x, \qquad w = 0{,}5~\text{UR/h}.
+\end{equation}
+
+\intertitre{Surcoût correctif}
+Une intervention corrective coûte $\kappa_c$ fois la préventive équivalente, hors arrêt. Le simulateur ajoute la différence à la main-d'œuvre et à la pièce déjà comptées :
+\begin{equation}\label{eq:corrective}
+C_{\mathrm{corr}} = (\kappa_c - 1) \sum_{x \in \mathcal{X}_c} \big( w\, H_x + c_{p(x)} \big), \qquad \kappa_c = 2.
+\end{equation}
+
+\intertitre{Arrêt}
+Chaque heure d'ouverture pendant laquelle une machine n'est pas opérationnelle coûte la marge qu'elle aurait produite :
+\begin{equation}\label{eq:arret}
+C_{\mathrm{arr}} = \sum_{t} \sum_{i=1}^{M} g_i\; o_i(t)\, \ind\big[\sigma_i(t) \neq \OP\big],
+\qquad
+o_i(t) = \ind\big[(t \bmod 24) < 8\,n_i\big],
+\end{equation}
+\begin{equation}\label{eq:marge}
+g_i = \text{cadence}_i \times \text{marge par pièce}_i =
+\begin{cases}
+60 \times 0{,}0167 = 1{,}002~\text{UR/h} & \text{famille U},\\
+20 \times 0{,}05 = 1{,}000~\text{UR/h} & \text{famille C}.
+\end{cases}
+\end{equation}
+
+\intertitre{Rebut et retouche}
+Toutes les pièces défectueuses de l'année ($N^{\mathrm{def}}$, section~\ref{sec:production}) sont rebutées ou retouchées :
+\begin{equation}\label{eq:rebut}
+C_{\mathrm{reb}} = c_s\, N^{\mathrm{reb}}, \qquad C_{\mathrm{ret}} = c_r\,\big(N^{\mathrm{def}} - N^{\mathrm{reb}}\big), \qquad N^{\mathrm{reb}} \sim \Bin\big(N^{\mathrm{def}},\, 1 - \lambda_r\big),
+\end{equation}
+avec $c_s = 0{,}1$~UR, $c_r = 0{,}03$~UR et une part retouchée $\lambda_r = 0{,}7$.
+
+\intertitre{Révision générale (famille C)}
+Chaque révision $v$ coûte son kit et un tiers de sa durée en main-d'œuvre :
+\begin{equation}\label{eq:revision}
+C_{\mathrm{rev}} = \sum_{v} \Big( c_v + w\, \frac{H_v}{3} \Big), \qquad c_v = 40~\text{UR}, \qquad H_v = 24 \times \LN(3{,}5 ; 0{,}25)~\text{h}.
+\end{equation}
+\source{src/spareparts/sim/engine.py (_tick, _intervene, _order, _overhaul, _close_day)}
+
+\subsection{Coût annuel et estimation de l'espérance}
+
+Le coût d'un horizon de $N_j$ jours est ramené à l'année, puis l'espérance \eqref{eq:objectif} est estimée par une moyenne sur $n$ graines :
+\begin{equation}\label{eq:estimateur}
+C_{\mathrm{an}} = C \times \frac{365}{N_j},
+\qquad
+\hat{J}_n(\pi) = \frac{1}{n} \sum_{j=1}^{n} C(\pi, \omega_j).
+\end{equation}
+Le réglage des politiques utilise les graines $\{101, 102, 103\}$ ($n = 3$), l'évaluation finale les graines $9\,000$ à $9\,029$ ($n = 30$). Toutes les politiques partagent les mêmes graines, ce qui réduit la variance de leurs écarts :
+\begin{equation}\label{eq:crn}
+\Var\big[\hat{J}_n(\pi) - \hat{J}_n(\pi')\big] = \frac{\sigma_\pi^2 + \sigma_{\pi'}^2 - 2\,\mathrm{Cov}\big(C(\pi,\omega), C(\pi',\omega)\big)}{n}.
+\end{equation}
+\source{src/spareparts/sim/results.py (compute_kpis) ; src/spareparts/evaluation.py (replicate)}
+
+\subsection{Forme utilisée par l'apprentissage par renforcement}
+
+Les agents reçoivent chaque soir le coût de la journée, changé de signe et mis à l'échelle :
+\begin{equation}\label{eq:recompense}
+r_\tau = -\frac{C_\tau}{150},
+\qquad
+\sum_{\tau=0}^{364} r_\tau = -\frac{C(\pi,\omega)}{150},
+\end{equation}
+où $C_\tau$ regroupe les neuf postes engagés pendant le jour $\tau$. L'agent maximise le retour actualisé
+\begin{equation}\label{eq:objectif-rl}
+J_\gamma(\theta) = \E_{\omega,\,\pi_\theta}\Big[\, \sum_{\tau \geq 0} \gamma^{\tau}\, r_\tau \Big],
+\qquad
+\gamma = 0{,}995 \text{ (PPO)}, \quad \gamma = 0{,}99 \text{ (DQN, BDQ)},
+\end{equation}
+d'horizon effectif $1/(1-\gamma) = 200$ jours pour PPO. La fin de l'année est traitée comme une troncature et non comme une fin de partie : le retour y est prolongé par $\gamma\,V(o_{365})$. Pour MaskablePPO, les récompenses sont en outre divisées par l'écart-type courant du retour actualisé $R_\tau = \gamma R_{\tau-1} + r_\tau$ :
+\begin{equation}\label{eq:normalisation}
+\tilde{r}_\tau = \clip\Big( \frac{r_\tau}{\sqrt{\hat{\sigma}_R^2 + 10^{-8}}},\; -10,\; 10 \Big).
+\end{equation}
+\source{src/spareparts/envs/fleet_env.py (step) ; scripts/train_rl.py (VecNormalize)}
+
+\subsection{Paramètres de la fonction objectif}
+
+\begin{tabularx}{\linewidth}{@{}L P{1.6cm} P{4.2cm}@{}}
+\toprule
+\hd{Paramètre} & \hd{Symbole} & \hd{Valeur dans S1} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Paramètre} & \hd{Symbole} & \hd{Valeur dans S1} \\
+\midrule
+\endhead
+Taux de possession du stock & $h$ & 25~\% de la valeur par an \\
+Coût fixe d'une commande & $c_f$ & 2~UR \\
+Majoration d'urgence & $u$ & $\times\,2{,}5$ \\
+Coût horaire de main-d'œuvre & $w$ & 0,5~UR/h \\
+Rapport corrective sur préventive & $\kappa_c$ & 2 \\
+Marge perdue par heure d'arrêt & $g_i$ & 1~UR/h (U et C) \\
+Cadence & & 60 (U) et 20 (C) pièces/h \\
+Rebut, retouche & $c_s$, $c_r$ & 0,1 et 0,03~UR par pièce \\
+Part des défauts retouchés & $\lambda_r$ & 70~\% \\
+Kit de révision générale & $c_v$ & 40~UR \\
+Prix des pièces & $c_p$ & 1, 1, 50, 200~UR \\
+Délais fournisseur moyens & $\ell_p$ & 5, 5, 31, 42~j (cv 0,3 ; 0,3 ; 0,25 ; 0,25) \\
+Effectif technique & $n_{\mathrm{tech}}$ & 2 \\
+Échelle des récompenses & & 150~UR \\
+\bottomrule
+\end{tabularx}
+\source{src/spareparts/config.py (CostSpec) ; configs/scenarios/s1_nominal.yaml}
+
+% ---------------------------------------------------------------- Hypothèses
+\subsection{Hypothèses dont dépend la fonction objectif}\label{sec:hypotheses}
+
+Chaque hypothèse ci-dessous fixe soit la forme d'un terme de \eqref{eq:cout-total}, soit la loi des aléas sous laquelle l'espérance \eqref{eq:objectif} est prise, soit l'ensemble $\Pi$ des politiques admissibles. La colonne de droite indique par où elle agit sur $J$. Les hypothèses A1 à A5 reprennent H1 à H5 du cahier des charges ; les autres sont lues dans le code et dans la configuration du scénario.
+
+{\small
+\begin{tabularx}{\linewidth}{@{}P{0.9cm} L P{6.1cm}@{}}
+\multicolumn{3}{@{}l}{\groupetitre{A. Structure du système}}\\
+\toprule
+\hd{Réf.} & \hd{Hypothèse retenue} & \hd{Effet sur la fonction objectif} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Réf.} & \hd{Hypothèse retenue} & \hd{Effet sur la fonction objectif} \\
+\midrule
+\endhead
+A1 & Toute panne et toute maintenance préventive consomment une pièce de la référence du composant. & La demande de pièces vaut pannes plus préventives : $C_{\mathrm{cmd}}$, $C_{\mathrm{stock}}$ et le risque de rupture en découlent. \\
+A2 & Le remplacement remet le composant à neuf : son âge repart de zéro et une nouvelle durée de vie est tirée, indépendante de la précédente. Pas de réparation imparfaite. & Une préventive rajeunit entièrement le composant, ce qui maximise son intérêt ; une réparation imparfaite réduirait le gain de toutes les politiques préventives. \\
+A3 & Les machines sont indépendantes, sauf par le stock et l'équipe de techniciens qu'elles partagent. & $J$ est une somme de contributions par machine, à la congestion des ressources partagées près. \\
+A4 & Aucune pièce n'est prélevée sur une autre machine ; une pièce déposée n'est jamais réparée ni remise en stock. & Une rupture immobilise la machine jusqu'à la livraison : son coût passe entièrement par $C_{\mathrm{arr}}$. \\
+A5 & Les décisions sont prises une fois par jour, au début de la journée ; les événements sont simulés en temps continu et le vieillissement par pas d'une heure. & Une panne survenue en cours de journée ne déclenche de commande que le lendemain matin : la réactivité de toute politique est bornée à un jour. \\
+A6 & L'horizon est d'un an, sans valeur résiduelle du stock ni des composants au dernier jour. & Une pièce achetée en fin d'année coûte sans rapporter : $J$ pénalise un peu les stocks et les préventives de fin d'horizon. \\
+A7 & Départ en régime : $a_{ik}(0) = \min(U\,T_k,\; 0{,}85\,L_{ik})$ avec $U \sim \Unif(0,1)$ ; stocks initiaux de 12, 12, 4 et 2 pièces. & Fixe la charge des premières semaines ; aucun composant n'est en panne au jour 0. \\
+A8 & Flotte S1 de 50 machines U et 50 machines C ; postes tirés dans $\{2,3\}$ (U) ou $\{1,2\}$ (C) ; âge des machines tiré dans $\Unif(0, 20)$ ans, qui ne sert qu'à dater les révisions. & La composition fixe le niveau de $J$ (de 33\,900 à 65\,900~UR pour P1 selon les compositions tirées). L'âge de la machine n'agit pas sur la fiabilité dans le simulateur, contrairement au modèle AFT ajusté sur Azure. \\
+\bottomrule
+\end{tabularx}}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}P{0.9cm} L P{6.1cm}@{}}
+\multicolumn{3}{@{}l}{\groupetitre{B. Fiabilité et vieillissement}}\\
+\toprule
+\hd{Réf.} & \hd{Hypothèse retenue} & \hd{Effet sur la fonction objectif} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Réf.} & \hd{Hypothèse retenue} & \hd{Effet sur la fonction objectif} \\
+\midrule
+\endhead
+B1 & Les durées de vie suivent des lois de Weibull, indépendantes entre composants, entre machines et entre poses successives. & Fixe la loi des pannes, donc $C_{\mathrm{arr}}$, $C_{\mathrm{corr}}$ et la demande ; l'indépendance exclut les pannes en cascade. \\
+B2 & $\beta_k > 1$ pour tous les composants (de 1,8 à 3,0 dans S1) : le taux de panne croît avec l'âge. & Condition pour qu'une préventive réduise $J$ ; avec $\beta \leq 1$, la meilleure politique serait purement corrective. \\
+B3 & Régime à l'usage : l'âge n'avance que pendant les heures de marche. Régime calendaire : il avance en permanence. & Les composants à l'usage d'une machine peu chargée durent plus longtemps en temps calendaire ; les pannes calendaires ne dépendent pas de la charge. \\
+B4 & Une panne ne se déclare que sur une machine opérationnelle ; un composant calendaire qui a dépassé sa durée de vie pendant un arrêt tombe en panne à la remise en service. & Pas de panne pendant un arrêt : les arrêts ne créent pas de pannes supplémentaires. \\
+B5 & Les paramètres de Weibull de S1 sont fixés dans la configuration ($\eta$ de 3\,000 à 70\,000~h) ; les intervalles constructeur valent environ $\eta/2$. Les lois ajustées sur Azure servent à la validation du simulateur. & Le niveau de $J$ dépend directement de ces valeurs. Avec $T \approx \eta/2$, 16 à 18~\% des roulements et joints tombent en panne avant leur préventive \eqref{eq:avant-pm}. \\
+B6 & Un facteur de taux de panne $c$ multiplie le taux cumulé : $\eta' = \eta\, c^{-1/\beta}$. & Sert à la robustesse ($c = 1{,}3$) et au modèle de substitution ($c \in [0{,}6 ; 1{,}8]$) ; c'est le premier facteur de variance du coût dans l'analyse de Sobol. \\
+B7 & La dérive du signal associé à un composant croît comme $D^3$, avec une amplitude lognormale de moyenne 1 et de cv 0,4 ; bruit horaire $\mathcal{N}(0 ; 0{,}6^2)$. & Fixe l'information disponible pour P2, P3 et les agents. Une dérive plus faible ou plus bruitée réduirait l'avantage des politiques conditionnelles et prédictives. \\
+\bottomrule
+\end{tabularx}}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}P{0.9cm} L P{6.1cm}@{}}
+\multicolumn{3}{@{}l}{\groupetitre{C. Coûts}}\\
+\toprule
+\hd{Réf.} & \hd{Hypothèse retenue} & \hd{Effet sur la fonction objectif} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Réf.} & \hd{Hypothèse retenue} & \hd{Effet sur la fonction objectif} \\
+\midrule
+\endhead
+C1 & Coûts en unités relatives, 1~UR valant une pièce catalogue. & Seuls les rapports entre coûts comptent : $\pi^{\star}$ ne change pas si l'on convertit en dirhams ou en euros. \\
+C2 & Coûts linéaires en quantités ; seule économie d'échelle : le coût fixe $c_f = 2$~UR par commande. & Incite à grouper les commandes des pièces à 1~UR ; effet négligeable pour les références à 50 et 200~UR. \\
+C3 & Possession de 25~\% par an sur la valeur du stock physique, comptée heure par heure ; pièces en transit et composants montés non comptés. & Arbitrage stock contre rupture : un moteur en stock coûte 50~UR par an, soit environ 50 heures d'arrêt d'une machine. \\
+C4 & L'achat est comptabilisé à la commande, et non à la réception. & Avec A6, une commande passée tard dans l'année pèse sur $J$ sans contrepartie. \\
+C5 & Urgence : surprime de $1{,}5\,c_p$ par pièce, délais ramenés à 1, 1, 7 et 10 jours. & Accessible au seul niveau N2 ; aucune politique de référence ne commande en urgence. \\
+C6 & Main-d'œuvre à 0,5~UR/h sur les seules heures d'intervention \eqref{eq:duree-intervention} ; diagnostic et attentes non payés ; pas de coût fixe des techniciens ; la majoration de 1,5 des heures supplémentaires prévue au cahier des charges n'est pas codée. & L'effectif n'a pas de coût propre : un technicien de plus ne coûte rien dans $J$, il ne fait que réduire les attentes. Cela contribue au faible poids du nombre de techniciens dans l'analyse de Sobol. \\
+C7 & Surcoût correctif $\kappa_c = 2$, appliqué à la main-d'œuvre et à la pièce (le cahier des charges prévoyait de le tester entre 1,5 et 3). & Fixe l'écart de coût direct entre corrective et préventive : avec l'arrêt, c'est le levier principal de la maintenance préventive. \\
+C8 & L'arrêt est valorisé à la marge perdue, environ 1~UR par heure d'ouverture, dans tout état non opérationnel : panne, attentes, réparation, préventive, test, révision. Rien n'est compté hors des heures d'ouverture. & La disponibilité n'entre dans $J$ que par ce terme. Une préventive paie aussi son arrêt, et une journée d'arrêt d'une machine à un poste coûte trois fois moins qu'à trois postes. \\
+C9 & Une rupture de stock n'a pas de pénalité propre. & Elle ne coûte que par l'arrêt qu'elle prolonge ; une rupture qui tombe pendant les heures de fermeture coûte moins. \\
+C10 & Rebut à 0,1~UR, retouche à 0,03~UR ; 30~\% des pièces défectueuses rebutées et 70~\% retouchées ; toutes les pièces défectueuses sont traitées, pas seulement celles que le contrôle détecte ; temps de retouche non modélisé. & Ajoute à $J$ un terme qui croît avec l'usure : la préventive a un intérêt même lorsqu'aucune panne n'est imminente. \\
+C11 & Révision générale de la famille C : 40~UR plus un tiers de sa durée en main-d'œuvre ; kit hors gestion de stock ; date imposée. & Terme presque identique pour toutes les politiques : il décale $J$ sans changer le classement. \\
+C12 & Aucune actualisation financière dans $C$ : un coût de décembre pèse autant qu'un coût de janvier. & Seul l'objectif d'apprentissage \eqref{eq:objectif-rl} actualise. \\
+C13 & Coûts réglés pour que la meilleure politique à seuils connaisse encore 2 à 10~\% de ruptures. & Garantit un vrai compromis entre stock et disponibilité ; sans ce réglage, un stock abondant serait toujours optimal. \\
+\bottomrule
+\end{tabularx}}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}P{0.9cm} L P{6.1cm}@{}}
+\multicolumn{3}{@{}l}{\groupetitre{D. Production et qualité}}\\
+\toprule
+\hd{Réf.} & \hd{Hypothèse retenue} & \hd{Effet sur la fonction objectif} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Réf.} & \hd{Hypothèse retenue} & \hd{Effet sur la fonction objectif} \\
+\midrule
+\endhead
+D1 & Cadence constante par heure de marche, indépendante de l'usure. & La composante « performance » du TRS vaut 1 ; l'usure n'agit sur la production que par les défauts. \\
+D2 & $p_i = \min\big(p_0 + \sum_k a_k D_{ik}^{\gamma_q},\, 0{,}5\big)$ avec $p_0 = 1~\%$, $\gamma_q = 3$ et $a = (0{,}04 ; 0{,}02 ; 0{,}05 ; 0{,}03)$. & Au plus 15~\% de défauts quand les quatre composants sont usés. L'exposant 3 concentre les défauts en fin de vie : à mi-vie, l'excès ne dépasse pas 1,75 point. \\
+D3 & Espérances évaluées par blocs de 6 heures, quantités tirées une fois par jour. & Conserve la loi des quantités journalières, sans effet sur l'espérance de $C_{\mathrm{reb}} + C_{\mathrm{ret}}$. \\
+D4 & Contrôle d'une pièce sur 20 ; lot d'essai de 5 pièces après chaque intervention, rejeté si l'une est défectueuse ; reprise de 30~\% de la durée de base. & Un composant usé laissé sur la machine allonge les tests : $C_{\mathrm{mo}}$ et $C_{\mathrm{arr}}$ croissent avec la dégradation résiduelle. \\
+D5 & Le taux de défauts observé ne porte que sur les pièces contrôlées. & Information bruitée, qui déclenche la maintenance de P2 au-delà de 3~\%. \\
+\bottomrule
+\end{tabularx}}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}P{0.9cm} L P{6.1cm}@{}}
+\multicolumn{3}{@{}l}{\groupetitre{E. Logistique et main-d'œuvre}}\\
+\toprule
+\hd{Réf.} & \hd{Hypothèse retenue} & \hd{Effet sur la fonction objectif} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Réf.} & \hd{Hypothèse retenue} & \hd{Effet sur la fonction objectif} \\
+\midrule
+\endhead
+E1 & Délai d'une commande : 4~h de traitement, une durée Gamma de moyenne $f_L\,\ell_p$ jours, puis une réception $\Tri(1 ; 2 ; 3)$~h. Fournisseurs sans limite de capacité, livraisons complètes, commandes indépendantes. & Le délai fixe le stock de sécurité nécessaire ; le doublement des délais ($f_L = 2$) est la situation dégradée qui sépare le plus les politiques. \\
+E2 & Les demandes en attente sont servies dans l'ordre d'arrivée, à la réception. & Aucune priorité entre machines : une machine à trois postes peut attendre derrière une machine à un poste. \\
+E3 & Deux techniciens interchangeables, disponibles 24~h sur 24 (le calendrier de postes du cahier des charges n'est pas codé), priorité non préemptive aux correctives sur les préventives et révisions. & Les attentes technicien restent courtes (charge moyenne de l'ordre de 25~\%) ; à un seul technicien, les politiques riches en préventives perdent leur avantage. \\
+E4 & Une préventive ne démarre que si la machine est opérationnelle, un technicien libre le matin et la pièce en stock ; la pièce est prélevée dès la décision ; une visite par machine et par jour. & Restreint $\Pi$ : aucune politique ne peut engager plus d'interventions que de techniciens libres au matin. \\
+E5 & Une pièce de chaque référence est réservée aux pannes (P0 à P3, niveaux réduit et N1). & Protège les correctives des ruptures causées par les préventives, au prix d'un stock moyen plus élevé. \\
+E6 & Diagnostic $\LN(1~\text{h} ; 0{,}5)$ ; réparation $\LN(m_k ; \mathrm{cv}_k)$ avec $m = 4, 5, 8, 12$~h ; préventive à 60~\% de la réparation. & Fixent $C_{\mathrm{mo}}$ et la durée des arrêts par intervention. \\
+\bottomrule
+\end{tabularx}}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}P{0.9cm} L P{6.1cm}@{}}
+\multicolumn{3}{@{}l}{\groupetitre{F. Estimation de l'espérance}}\\
+\toprule
+\hd{Réf.} & \hd{Hypothèse retenue} & \hd{Effet sur la fonction objectif} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Réf.} & \hd{Hypothèse retenue} & \hd{Effet sur la fonction objectif} \\
+\midrule
+\endhead
+F1 & $J$ est estimé par la moyenne de 30 années indépendantes, de graines 9\,000 à 9\,029. & L'intervalle de confiance du coût de P1 a une demi-largeur de 1\,255~UR, soit 2,4~\% : un écart plus fin entre deux moyennes ne se lit qu'au travers des tests appariés. \\
+F2 & Nombres aléatoires communs : toutes les politiques partent de la même graine. Le simulateur tire tous ses aléas dans un flux unique : l'état initial (flotte, durées de vie, dérives) est identique, mais les tirages se décalent dès que deux politiques divergent, et dès la première heure pour les politiques qui activent la fenêtre de télémétrie (P3 et agents à risque). & La réduction de variance \eqref{eq:crn} n'est donc que partielle. Des flux séparés par usage (pannes, délais, durées) rendraient la comparaison appariée plus stricte. \\
+F3 & Graines de réglage (101 à 103), d'apprentissage (tirées au hasard) et d'évaluation (9\,000 à 9\,029) disjointes. & Écarte le biais optimiste des politiques réglées sur leurs propres graines. \\
+F4 & Normalité approchée des moyennes (intervalles de Student), symétrie des écarts appariés (Wilcoxon), marge d'équivalence de $\pm 2~\%$ du coût de P1 (TOST). & Les verdicts « meilleur », « équivalent » ou « moins bon » dépendent du choix de la marge. \\
+\bottomrule
+\end{tabularx}}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}P{0.9cm} L P{6.1cm}@{}}
+\multicolumn{3}{@{}l}{\groupetitre{G. Objectif d'apprentissage des agents}}\\
+\toprule
+\hd{Réf.} & \hd{Hypothèse retenue} & \hd{Effet sur la fonction objectif} \\
+\midrule
+\endfirsthead
+\toprule
+\hd{Réf.} & \hd{Hypothèse retenue} & \hd{Effet sur la fonction objectif} \\
+\midrule
+\endhead
+G1 & Le problème journalier est traité comme un processus de décision markovien ; il est en réalité partiellement observable (durées de vie cachées, observation agrégée aux niveaux réduit et N1). & La politique apprise est stationnaire en l'observation : elle ne peut exploiter aucune information que l'observation ne contient pas. \\
+G2 & Actualisation $\gamma = 0{,}995$ (PPO) ou $0{,}99$ (DQN, BDQ), et fin d'année traitée comme une troncature prolongée par $\gamma V(o_{365})$. & $J_\gamma$ n'est pas exactement $-J/150$ : le coût du 365\textsuperscript{e} jour pèse $\gamma^{364} \approx 0{,}16$ fois celui du premier pour PPO, $0{,}026$ pour les DQN. L'agent optimise un horizon infini actualisé, et non l'année seule. \\
+G3 & Échelle $1/150$ des récompenses et, pour PPO, division par l'écart-type courant du retour \eqref{eq:normalisation}. & Facteurs positifs : ils ne changent pas l'ordre des politiques, seulement la conduite de l'apprentissage. \\
+G4 & Chaque épisode tire une nouvelle graine ; avec le curriculum, l'épisode s'allonge de 90 à 365 jours. & L'objectif est bien une espérance sur $\omega$ ; les premiers épisodes, courts, ne voient pas la fin de l'année. \\
+G5 & Espace d'action fini (36 actions, $6^8$ combinaisons ou environ $5{,}4 \times 10^{76}$) et masques : machine arrêtée, pièce absente, avancement inférieur à 0,5, aucun technicien libre. & Définit le sous-ensemble de $\Pi$ accessible à l'agent ; le plancher de représentation \eqref{eq:plancher} borne ce qu'il peut atteindre. \\
+G6 & Biais initial vers l'inaction au niveau N2 \eqref{eq:prior}. & Ne retire aucune décision mais oriente l'exploration, donc l'optimum local atteint. \\
+G7 & Récompense par branche du BDQ (option désactivée par défaut) : chaque décision reçoit le coût qui lui est attribuable, le résidu (rebut, retouche) étant réparti également. & Suppose les coûts additifs par décision ; la somme des récompenses de branche égale la récompense globale \eqref{eq:recompense-branche}. \\
+\bottomrule
+\end{tabularx}}
+
+% ================================================================ 3
+\section{Fiabilité des composants et calibration}\label{sec:fiabilite}
+
+\subsection{Loi de Weibull}
+
+Pour un composant de forme $\beta$ et d'échelle $\eta$, l'âge $t$ étant compté dans l'unité de son régime :
+\begin{align}
+f(t) &= \frac{\beta}{\eta}\Big(\frac{t}{\eta}\Big)^{\beta-1} \exp\Big[-\Big(\frac{t}{\eta}\Big)^{\beta}\Big], &
+R(t) &= \exp\Big[-\Big(\frac{t}{\eta}\Big)^{\beta}\Big] = 1 - F(t), \label{eq:weibull}\\
+h(t) &= \frac{f(t)}{R(t)} = \frac{\beta}{\eta}\Big(\frac{t}{\eta}\Big)^{\beta-1}, &
+H(t) &= \Big(\frac{t}{\eta}\Big)^{\beta}, \qquad \E[L] = \eta\, \Gamma\Big(1 + \frac{1}{\beta}\Big). \label{eq:hasard}
+\end{align}
+À chaque pose, la durée de vie est tirée par $L = \eta\, X$, avec $X = (-\ln U)^{1/\beta}$ et $U \sim \Unif(0,1)$. La part des composants qui tombent en panne avant leur préventive vaut
+\begin{equation}\label{eq:avant-pm}
+\Pr(L < T) = 1 - \exp\big[-(T/\eta)^{\beta}\big],
+\end{equation}
+soit 16,2~\% pour le roulement ($T/\eta = 0{,}5$, $\beta = 2{,}5$) et 17,9~\% pour les joints de la famille U ($T/\eta = 0{,}44$, $\beta = 2$).
+
+Un facteur $c$ sur le taux de panne multiplie le taux cumulé, ce qui revient à réduire l'échelle :
+\begin{equation}\label{eq:facteur-panne}
+H'(t) = c\, H(t) \iff \eta' = \eta\, c^{-1/\beta}.
+\end{equation}
+\source{src/spareparts/sim/engine.py (_setup_fleet, _renew)}
+
+\subsection{Ajustement sur Azure}
+
+Une durée de vie $t_m = s_{m+1} - s_m$ sépare deux remplacements successifs d'un même composant. Elle est complète ($\delta_m = 1$) si le remplacement qui la termine fait suite à une panne, censurée à droite ($\delta_m = 0$) sinon ; la dernière durée de chaque composant est censurée par la fin de l'historique. Les paramètres maximisent la log-vraisemblance censurée :
+\begin{equation}\label{eq:vraisemblance}
+\ell(\beta,\eta) = \sum_m \big[ \delta_m \ln f(t_m) + (1-\delta_m) \ln R(t_m) \big]
+= \sum_m \delta_m \big[ \ln\beta - \beta\ln\eta + (\beta-1)\ln t_m \big] - \sum_m \Big(\frac{t_m}{\eta}\Big)^{\beta}.
+\end{equation}
+Le modèle à temps de vie accéléré fait dépendre l'échelle de l'âge $A$ et du modèle de la machine :
+\begin{equation}\label{eq:aft}
+R(t \mid x) = \exp\Big[-\Big(\frac{t}{\eta(x)}\Big)^{\beta}\Big],
+\qquad
+\ln \eta(x) = \theta_0 + \theta_A\, A + \sum_{m=2}^{4} \theta_m\, \ind[\text{modèle} = m].
+\end{equation}
+L'effet d'une variable est multiplicatif sur la durée de vie : $e^{\theta_A} \approx 0{,}98$ par année d'âge, $e^{\theta_m} \approx 1{,}17$, $1{,}46$ et $1{,}48$ pour les modèles 2, 3 et 4.
+\source{src/spareparts/reliability/weibull.py}
+
+\subsection{Correction par simulation et validation}
+
+Le nombre de pannes d'un composant varie à peu près comme $\eta^{-\beta}$, puisque $F(t) \approx (t/\eta)^{\beta}$ lorsque $t \ll \eta$. L'échelle est donc corrigée, en trois itérations sur huit graines, pour reproduire les pannes du premier semestre 2015 :
+\begin{equation}\label{eq:correction}
+\eta^{(r+1)} = \eta^{(r)} \left( \frac{\max(\bar{N}_{\mathrm{sim}}^{(r)},\, 1)}{N_{\mathrm{obs}}} \right)^{1/\beta}, \qquad r = 0, 1, 2.
+\end{equation}
+La validation compare l'écart relatif à l'incertitude de Poisson du nombre observé :
+\begin{equation}\label{eq:validation}
+e = \frac{\bar{N}_{\mathrm{sim}} - N_{\mathrm{obs}}}{N_{\mathrm{obs}}},
+\qquad
+\mathrm{cv}(N_{\mathrm{obs}}) = \frac{1}{\sqrt{N_{\mathrm{obs}}}} \quad (84 \text{ pannes} \Rightarrow 10{,}9~\%).
+\end{equation}
+\source{src/spareparts/validation.py (calibrate_scale, compare)}
+
+% ================================================================ 4
+\section{Simulateur à événements discrets}\label{sec:simulateur}
+
+\subsection{Lois des durées}
+
+Les lois lognormale et gamma sont paramétrées par leur moyenne $m$ et leur coefficient de variation $\mathrm{cv}$ :
+\begin{align}
+X &\sim \LN(m, \mathrm{cv}) : & X &= \exp(\mu + s Z), & s^2 &= \ln(1 + \mathrm{cv}^2), & \mu &= \ln m - s^2/2, \label{eq:lognormale}\\
+X &\sim \Gam(m, \mathrm{cv}) : & & & k &= 1/\mathrm{cv}^2, & \theta &= m\, \mathrm{cv}^2, \label{eq:gamma}
+\end{align}
+avec $Z \sim \mathcal{N}(0,1)$, de sorte que $\E[X] = m$ et $\sqrt{\Var X} = \mathrm{cv}\, m$. Les durées courtes suivent des lois triangulaires $\Tri(a ; c ; b)$ de minimum $a$, de mode $c$ et de maximum $b$.
+
+\subsection{Flotte, ouverture et vieillissement}
+
+Les machines sont réparties entre les familles de part $s_f$ par $N_f = \lfloor s_f M / \sum_g s_g \rfloor$, le reliquat allant à la famille la plus représentée. À chaque heure :
+\begin{align}
+o_i(t) &= \ind\big[(t \bmod 24) < 8\, n_i\big], \qquad m_i(t) = o_i(t)\, \ind[\sigma_i(t) = \OP], \label{eq:marche}\\
+a_{ik}(t+1) &= a_{ik}(t) + \begin{cases} 1 & \text{régime calendaire,}\\ m_i(t) & \text{régime à l'usage.} \end{cases} \label{eq:vieillissement}
+\end{align}
+La machine tombe en panne dès que $\sigma_i(t) = \OP$ et qu'un composant vérifie $a_{ik} \geq L_{ik}$ ; le composant défaillant est $k^{\star} = \argmax_k a_{ik}/L_{ik}$ parmi ceux qui ont dépassé leur durée de vie.
+
+Pour une machine de la famille C d'âge $A_i$ (années), avec une période de révision $Y \in \{5, 10\}$ ans, la première révision tombe à
+\begin{equation}\label{eq:revision-date}
+t^{\mathrm{rev}}_i = 8\,760 \times \big( Y \lceil A_i / Y \rceil - A_i \big) \text{ heures} \quad (\text{plus } Y \text{ si } Y\lceil A_i/Y\rceil = A_i),
+\end{equation}
+puis tous les $Y$ ans après la fin de la précédente.
+\source{src/spareparts/sim/engine.py (_setup_fleet, _tick)}
+
+\subsection{Approvisionnement}
+
+Une commande normale ou urgente de la référence $p$ arrive après
+\begin{equation}\label{eq:delai}
+\Lambda_o = 4 + 24\, G_o + \Tri(1 ; 2 ; 3), \qquad G_o \sim \Gam\big(f_L\, \ell_p,\; \mathrm{cv}_p\big) \text{ jours},
+\end{equation}
+où $f_L$ est le facteur de délai du scénario. La date annoncée à la politique est $t + 4 + 24\, f_L\, \ell_p + 2$. À la réception, les demandes en attente sont servies dans l'ordre d'arrivée tant que le stock le permet. Les politiques raisonnent sur la position de stock $\IP_p = I_p + O_p - B_p$.
+\source{src/spareparts/sim/engine.py (_order) ; src/spareparts/policies/base.py}
+
+\subsection{Télémétrie et alarmes}
+
+Chaque composant est associé à un signal $s_k$ (vibration, pression, rotation, tension) qu'il fait dériver d'une quantité $\Delta_k$ (en écarts-types : $3$, $-2{,}5$, $-2{,}5$ et $2$). Pour la machine $i$ et le signal $s$, à chaque heure de marche :
+\begin{equation}\label{eq:telemetrie}
+x_{is}(t) = b_{is} + \sigma_s \Big( \sum_{k} \ind[s_k = s]\, \Delta_k\, A_{ik}\, D_{ik}(t)^3 + \varepsilon_{is}(t) \Big),
+\qquad \varepsilon_{is}(t) \sim \mathcal{N}(0 ; 0{,}6^2),
+\end{equation}
+avec un niveau propre à la machine $b_{is} = \mu_s + 0{,}3\, \sigma_s\, \xi_{is}$, $\xi_{is} \sim \mathcal{N}(0,1)$, et une amplitude $A_{ik} \sim \LN(1 ; 0{,}4)$ tirée à chaque pose. Les niveaux sont $\mu = (170 ; 446 ; 100 ; 40)$ et $\sigma = (15 ; 52 ; 11 ; 5)$ pour la tension, la rotation, la pression et la vibration. Le signal normalisé vaut
+\begin{equation}\label{eq:normalisation-signal}
+z_{is}(t) = \frac{x_{is}(t) - \mu_s}{\sigma_s} \quad \text{en marche}, \qquad z_{is}(t) = 0 \quad \text{à l'arrêt}.
+\end{equation}
+Le résumé journalier observé par les politiques, sur les $h_i$ heures de marche de la journée, est
+\begin{equation}\label{eq:signal-jour}
+\bar{z}_{is} = \frac{1}{h_i} \sum_k \ind[s_k = s]\, \Delta_k\, A_{ik} \sum_{t} m_i(t)\, D_{ik}(t)^3 + \nu_{is},
+\qquad \nu_{is} \sim \mathcal{N}\Big(0 ; \frac{0{,}6^2}{h_i}\Big).
+\end{equation}
+Les alarmes non bloquantes suivent un processus de Poisson dont l'intensité horaire croît avec l'usure :
+\begin{equation}\label{eq:alarmes}
+\lambda_i = 0{,}003 + 0{,}03\, \max_k D_{ik}^2, \qquad N^{\mathrm{al}}_i \sim \Pois\Big(\sum_t m_i(t)\, \lambda_i(t)\Big).
+\end{equation}
+\source{src/spareparts/sim/engine.py (_tick, _flush, _close_day) ; src/spareparts/config.py (TelemetrySpec)}
+
+\subsection{Production, défauts et tests}\label{sec:production}
+
+La probabilité qu'une pièce soit défectueuse dépend de la dégradation des quatre composants :
+\begin{equation}\label{eq:defaut}
+p_i(t) = \min\Big( p_0 + \sum_{k=1}^{K} a_k\, D_{ik}(t)^{\gamma_q},\; 0{,}5 \Big),
+\qquad p_0 = 0{,}01, \quad \gamma_q = 3.
+\end{equation}
+La production et son espérance de défauts sont cumulées par blocs $b$ de six heures, puis les quantités sont tirées chaque jour :
+\begin{align}
+N_i &= \operatorname{arrondi}\Big( \sum_b \text{cadence}_i\, h_{ib} \Big), &
+\bar{p}_i &= \frac{\sum_b \text{cadence}_i\, h_{ib}\, p_{ib}}{\sum_b \text{cadence}_i\, h_{ib}}, \label{eq:production}\\
+N^{\mathrm{def}}_i &\sim \Bin(N_i,\, \bar{p}_i), &
+\hat{q}_i &= \frac{N^{\mathrm{obs}}_i}{\lfloor N_i/20 \rfloor}, \quad N^{\mathrm{obs}}_i \sim \Bin\big(\lfloor N_i/20 \rfloor,\, \bar{p}_i\big), \label{eq:controle}
+\end{align}
+où $h_{ib}$ est le nombre d'heures de marche du bloc et $\hat{q}_i$ le taux de défauts observé au contrôle. Après chaque intervention, un lot d'essai de cinq pièces est accepté avec la probabilité
+\begin{equation}\label{eq:test}
+\Pr(\text{test conforme}) = (1 - p_i)^5, \qquad p_i = p_0 = 1~\% \;\Rightarrow\; 1 - 0{,}99^5 \approx 4{,}9~\% \text{ d'échecs}.
+\end{equation}
+Le temps d'arrêt d'une corrective, de la panne à la remise en service, vaut le diagnostic, l'attente de pièce, l'attente de technicien et la durée $H_x$ de \eqref{eq:duree-intervention}. L'état affiché d'une journée est l'état hors service le plus long s'il a duré au moins une heure, l'état opérationnel sinon.
+\source{src/spareparts/sim/engine.py (defect_probability, _flush, _close_day, _trial_batch_ok)}
+
+% ================================================================ 5
+\section{Indicateurs de performance}\label{sec:indicateurs}
+
+Avec $H^{\mathrm{ouv}} = \sum_{t,i} o_i(t)$ les heures d'ouverture et $H^{\mathrm{mar}} = \sum_{t,i} m_i(t)$ les heures de marche de la flotte :
+\begin{align}
+A &= \frac{H^{\mathrm{mar}}}{H^{\mathrm{ouv}}}, &
+Q &= 1 - \frac{N^{\mathrm{def}}}{N^{\mathrm{prod}}}, \label{eq:trs}\\
+\mathrm{TRS} &= A \times \underbrace{\mathcal{P}}_{=\,1} \times Q = A\, Q, &
+\text{taux de défauts} &= 1 - Q, \label{eq:taux-defauts}\\
+\text{ruptures} &= \frac{\sum_p N^{\mathrm{rupt}}_p}{\sum_p N^{\mathrm{dem}}_p}, &
+\text{stock immobilisé} &= \frac{1}{T} \sum_t \sum_p c_p\, I_p(t), \label{eq:ruptures}\\
+\bar{W}_{\mathrm{pièce}} &= \frac{\sum_x W_x^{\mathrm{pièce}}}{N_{\mathrm{corr}}}, &
+\bar{W}_{\mathrm{tech}} &= \frac{\sum_x W_x^{\mathrm{tech}}}{N_{\mathrm{corr}}}, \label{eq:attentes}\\
+\mathrm{MTBF} &= \frac{H^{\mathrm{mar}}}{N_{\mathrm{pannes}}}, &
+\mathrm{MTTR} &= \frac{\sum_x \big( t_x^{\mathrm{remise}} - t_x^{\mathrm{panne}} \big)}{N_{\mathrm{corr}}}, \label{eq:mtbf}\\
+\text{charge des techniciens} &= \frac{\sum_x H_x + \sum_v H_v/3}{n_{\mathrm{tech}}\, T}. \label{eq:charge}
+\end{align}
+La performance $\mathcal{P}$ vaut 1 par construction (hypothèse D1). Une demande de pièce est comptée à la fin du diagnostic de chaque panne, et une rupture lorsque le stock est vide à cet instant. Les séries journalières de l'application appliquent les mêmes formules jour par jour.
+\source{src/spareparts/sim/results.py (compute_kpis, build_result)}
+
+% ================================================================ 6
+\section{Politiques de décision}\label{sec:politiques}
+
+\subsection{Briques communes}
+
+\intertitre{Règle de stock $(s,S)$}
+\begin{equation}\label{eq:sS}
+q_p = \begin{cases} S_p - \IP_p & \text{si } \IP_p \leq s_p \text{ et } S_p > \IP_p,\\ 0 & \text{sinon.} \end{cases}
+\end{equation}
+
+\intertitre{Ordonnancement des préventives}
+Chaque politique attribue un score $\psi_{ik}$ aux couples candidats (non définie pour les autres). Les couples sont parcourus par score décroissant et retenus sous trois contraintes : une intervention par machine, au plus $F$ interventions avec $F$ le nombre de techniciens libres le matin, et un stock restant strictement supérieur à la réserve $r_p$ :
+\begin{equation}\label{eq:ordonnancement}
+(i,k) \text{ retenu} \iff \sigma_i = \OP,\quad i \notin \mathcal{U},\quad I_{p(i,k)} > r_{p(i,k)},\quad |\mathcal{U}| < F,
+\end{equation}
+où $\mathcal{U}$ est l'ensemble des machines déjà retenues ; chaque choix décrémente le stock disponible.
+\source{src/spareparts/policies/base.py (reorder_up_to, schedule_preventive)}
+
+\subsection{P0 et P1 : seuils fixes}
+
+Un composant devient candidat lorsque son avancement, rapporté à l'intervalle corrigé par le facteur $f_k$, atteint 1 :
+\begin{equation}\label{eq:p1}
+\rho^{f}_{ik} = \frac{a_{ik}}{f_k\, T_k}, \qquad \psi_{ik} = \rho^{f}_{ik} \;\text{ si } \rho^{f}_{ik} \geq 1, \qquad r_p = 1.
+\end{equation}
+P0 utilise $f_k = 1$ et les seuils $(s,S) = (6,16), (6,16), (2,5), (1,3)$. P1 est le meilleur de 40 candidats évalués sur les graines de réglage, le premier étant P0 :
+\begin{equation}\label{eq:recherche-p1}
+s_p \sim \Unif\{0, \dots, 3 s^0_p + 2\}, \quad
+S_p = s_p + w_p, \; w_p \sim \Unif\{1, \dots, \max(3,\, 3(S^0_p - s^0_p))\}, \quad
+f_k \sim \Unif(0{,}5 ; 1{,}6),
+\end{equation}
+\begin{equation}\label{eq:p1-optimum}
+\theta_{\mathrm{P1}} = \argmin_{\theta \in \{\theta_1, \dots, \theta_{40}\}} \hat{J}_3(\theta).
+\end{equation}
+Valeurs retenues : $s = (15, 10, 6, 4)$, $S = (22, 13, 7, 8)$, $f = (0{,}717 ; 1{,}389 ; 1{,}038 ; 1{,}588)$, pour $\hat{J}_3 = 53\,683{,}5$~UR.
+\source{src/spareparts/policies/classic.py ; src/spareparts/evaluation.py (optimize_fixed_threshold)}
+
+\subsection{P2 : maintenance conditionnelle}
+
+Le signal propre au composant est orienté dans le sens de sa dérive, de sorte qu'une valeur croissante signale toujours une dégradation :
+\begin{equation}\label{eq:p2-z}
+\zeta_{ik} = \bar{z}_{i, s_k}\, \operatorname{sgn}(\Delta_k), \qquad \rho_{ik} = \frac{a_{ik}}{T_k}.
+\end{equation}
+Un composant est candidat si l'une des trois conditions est vraie, et reçoit le score $\psi_{ik} = \zeta_{ik} + \rho_{ik}$ :
+\begin{equation}\label{eq:p2}
+\zeta_{ik} \geq 1
+\quad\text{ou}\quad
+\Big( \hat{q}_i \geq 0{,}03 \;\text{et}\; \rho_{ik} = \max_{k'} \rho_{ik'} \;\text{et}\; \rho_{ik} \geq 0{,}5 \Big)
+\quad\text{ou}\quad
+\rho_{ik} \geq 1{,}5.
+\end{equation}
+Le stock suit la règle $(s,S)$ de P0, avec la même réserve d'une pièce.
+\source{src/spareparts/policies/classic.py (ConditionalPolicy)}
+
+\subsection{P3 : politique prédictive}
+
+Le réseau de survie fournit pour chaque composant la probabilité cumulée de panne $F_{ik}(d)$ dans les $d$ prochains jours (section~\ref{sec:prediction}). La maintenance se déclenche sur le risque à trois jours ou sur l'âge :
+\begin{equation}\label{eq:p3-pm}
+F_{ik}(3) \geq \theta \quad\text{ou}\quad \rho_{ik} \geq \alpha,
+\qquad
+\psi_{ik} = \max\Big( F_{ik}(3),\; \frac{\rho_{ik}}{\alpha} - 1 \Big), \qquad r_p = 1.
+\end{equation}
+Pour la référence $p$, de délai entier $\tilde{\ell}_p = \max(\operatorname{arrondi}(f_L \ell_p), 1)$ jours, la demande attendue sur le délai additionne les pannes prédites, prolongées au-delà de l'horizon $H = 14$ jours à rythme constant, et les remplacements d'office à venir :
+\begin{align}
+\hat{E}_p &= \frac{\tilde{\ell}_p}{d_p} \sum_{(i,k)\,:\, p(i,k) = p} F_{ik}(d_p), \qquad d_p = \min(\tilde{\ell}_p, H), \label{eq:p3-demande}\\
+N^{\mathrm{plan}}_p &= \#\big\{ (i,k) : p(i,k) = p,\; a_{ik} + v_{ik}\, \tilde{\ell}_p \geq \alpha\, T_k \big\},
+\qquad v_{ik} = \begin{cases} 24\, \delta_i & \text{à l'usage,}\\ 24 & \text{calendaire,} \end{cases} \label{eq:p3-plan}\\
+\mathcal{D}_p &= \hat{E}_p + N^{\mathrm{plan}}_p, \qquad
+S^{\star}_p = \Big\lceil \mathcal{D}_p + z \sqrt{\mathcal{D}_p} + 1 \Big\rceil, \qquad
+q_p = \big(S^{\star}_p - \IP_p\big)^{+}. \label{eq:p3-stock}
+\end{align}
+Le terme $z\sqrt{\mathcal{D}_p}$ est le stock de sécurité d'une demande de Poisson. Les trois paramètres sont choisis sur la grille $\theta \in \{0{,}02 ; 0{,}05 ; 0{,}1\}$, $\alpha \in \{1{,}5 ; 2 ; 3\}$, $z \in \{0 ; 0{,}5\}$ (18 combinaisons) : $\theta = 0{,}02$, $\alpha = 1{,}5$, $z = 0$, pour $\hat{J}_3 = 52\,210{,}4$~UR.
+\source{src/spareparts/policies/predictive.py ; scripts/tune_p3.py}
+
+\subsection{Oracle}
+
+L'oracle connaît la durée de vie réelle. Il vise le remplacement à $70~\%$ de celle-ci et convertit le temps restant en heures calendaires :
+\begin{equation}\label{eq:oracle}
+\Delta^{\mathrm{rest}}_{ik} = \frac{\max(0{,}7\, L_{ik} - a_{ik},\, 0)}{\delta_i^{\,\ind[\text{usage}]}},
+\qquad
+\text{préventive si } \Delta^{\mathrm{rest}}_{ik} \leq 24~\text{h}, \quad \psi_{ik} = -\Delta^{\mathrm{rest}}_{ik}, \quad r_p = 0,
+\end{equation}
+\begin{equation}\label{eq:oracle-stock}
+\mathcal{B}_p = \#\big\{ (i,k) : p(i,k) = p,\; \Delta^{\mathrm{rest}}_{ik} \leq 24\, f_L\, \ell_p + 168 \big\} + 1,
+\qquad q_p = \big(\mathcal{B}_p - \IP_p\big)^{+}.
+\end{equation}
+\source{src/spareparts/policies/oracle.py}
+
+\subsection{Règles paramétrées par les agents}
+
+Aux niveaux réduit et N1, l'agent choisit chaque jour un seuil $\vartheta_k$ par composant et un multiplicateur $\mu_p$ par référence, dans
+\begin{equation}\label{eq:niveaux}
+\vartheta_k \in \{0{,}6 ; 0{,}8 ; 1 ; 1{,}2 ; 1{,}5 ; \infty\}, \qquad \mu_p \in \{0{,}5 ; 0{,}75 ; 1 ; 1{,}5 ; 2 ; 3\},
+\end{equation}
+que le simulateur applique par la règle $(s,S)$ \eqref{eq:sS} et l'ordonnancement \eqref{eq:ordonnancement} :
+\begin{equation}\label{eq:regle-n1}
+\begin{gathered}
+S_p = \max\big(\operatorname{arrondi}(S^{0}_p\, \mu_p),\, 1\big), \qquad
+s_p = \max\big(\operatorname{arrondi}(0{,}4\, S_p),\, 0\big),\\[0.2em]
+\psi_{ik} = \rho_{ik} \;\text{ si } \rho_{ik} \geq \vartheta_k,
+\end{gathered}
+\end{equation}
+avec $S^0 = (16, 16, 5, 3)$ et une réserve d'une pièce. Au niveau réduit, un même seuil et un même multiplicateur valent pour tous ; l'action $a \in \{0, \dots, 35\}$ se décode en $(\lfloor a/6 \rfloor,\; a \bmod 6)$.
+\source{src/spareparts/envs/codecs.py (_stock_rule, _threshold_preventive, ReducedCodec, Level1Codec)}
+
+% ================================================================ 7
+\section{Prédiction des pannes}\label{sec:prediction}
+
+\subsection{Exemples et cibles}
+
+Chaque exemple décrit une machine au début d'une journée $t_0$. Ses entrées sont une fenêtre $X \in \mathbb{R}^{48 \times 5}$ des quatre signaux normalisés \eqref{eq:normalisation-signal} et de l'indicateur de marche, et un vecteur statique
+\begin{equation}\label{eq:statique}
+x^{\mathrm{st}}_i = \big( \text{famille en codage 1 parmi } n,\; n_i/3,\; \clip(\rho_{i1}, 0, 3), \dots, \clip(\rho_{iK}, 0, 3) \big).
+\end{equation}
+Avec $t^{\mathrm{p}}$ la prochaine panne et $t^{\mathrm{r}}$ le prochain remplacement préventif du composant, la cible de survie en temps discret sur $H = 14$ jours est
+\begin{equation}\label{eq:cible}
+b_{ik} = \Big\lfloor \frac{t^{\mathrm{p}} - t_0}{24} \Big\rfloor \;\text{ si } t^{\mathrm{p}} < t^{\mathrm{r}} \text{ et } t^{\mathrm{p}} - t_0 < 24H,
+\qquad
+c_{ik} = \min\Big( H,\; \Big\lfloor \frac{\min(t^{\mathrm{r}}, t^{\mathrm{fin}}) - t_0}{24} \Big\rfloor \Big) \text{ sinon},
+\end{equation}
+la panne étant notée $b_{ik} = -1$ lorsqu'il y a censure, et $c_{ik} = b_{ik}$ lorsqu'il y a panne. L'étiquette à $d$ jours est $y^{(d)}_{ik} = \ind[0 \leq b_{ik} < d]$.
+\source{src/spareparts/predict/dataset.py}
+
+\subsection{Modèle de survie en temps discret}
+
+Le réseau renvoie un logit $u_{ikj}$ par composant et par jour $j = 0, \dots, H-1$. Le risque instantané est la probabilité de panne le jour $j$ sachant la survie jusque-là :
+\begin{equation}\label{eq:hasard-discret}
+\begin{gathered}
+h_{ikj} = \sigma(u_{ikj}) = \Pr(b = j \mid b \geq j),\\[0.3em]
+S_{ik}(d) = \prod_{j=0}^{d-1} (1 - h_{ikj}),
+\qquad
+F_{ik}(d) = 1 - S_{ik}(d) = 1 - \exp\Big( \sum_{j=0}^{d-1} \ln \sigma(-u_{ikj}) \Big).
+\end{gathered}
+\end{equation}
+L'apprentissage minimise la log-vraisemblance négative censurée, avec un poids $w_e = 5$ sur les pannes :
+\begin{equation}\label{eq:perte-survie}
+\mathcal{L}_{\mathrm{surv}} = -\frac{1}{N} \sum_{n=1}^{N} \sum_{k=1}^{K} \Big[ \sum_{j=0}^{c_{nk}-1} \ln\big(1 - h_{nkj}\big) + w_e\, \ind[b_{nk} \geq 0]\, \ln h_{nk\,b_{nk}} \Big].
+\end{equation}
+Optimiseur Adam \eqref{eq:adam}, pas $10^{-3}$, lots de 512, au plus 15 époques, arrêt anticipé après trois époques sans gain de $10^{-4}$ sur la perte de validation.
+\source{src/spareparts/predict/models.py (survival_loss, failure_probability) ; src/spareparts/predict/training.py}
+
+\subsection{Encodeurs}
+
+\intertitre{GRU (64 unités)}
+\begin{equation}\label{eq:gru}
+\begin{aligned}
+r_t &= \sigma(W_r x_t + U_r h_{t-1} + b_r), & z_t &= \sigma(W_z x_t + U_z h_{t-1} + b_z),\\
+\tilde{h}_t &= \tanh\big(W_n x_t + b_n + r_t \odot (U_n h_{t-1} + b'_n)\big), & h_t &= (1 - z_t) \odot \tilde{h}_t + z_t \odot h_{t-1}.
+\end{aligned}
+\end{equation}
+
+\intertitre{LSTM (64 unités)}
+\begin{equation}\label{eq:lstm}
+\begin{aligned}
+i_t &= \sigma(W_i x_t + U_i h_{t-1} + b_i), & f_t &= \sigma(W_f x_t + U_f h_{t-1} + b_f), & o_t &= \sigma(W_o x_t + U_o h_{t-1} + b_o),\\
+g_t &= \tanh(W_g x_t + U_g h_{t-1} + b_g), & c_t &= f_t \odot c_{t-1} + i_t \odot g_t, & h_t &= o_t \odot \tanh(c_t).
+\end{aligned}
+\end{equation}
+
+\intertitre{TCN (32 canaux)}
+Convolution causale dilatée de noyau $\kappa = 3$ et de dilatation $\nu$, avec un remplissage de $(\kappa - 1)\nu$ zéros à gauche, puis bloc résiduel :
+\begin{equation}\label{eq:tcn}
+(W \ast_\nu x)_t = \sum_{q=0}^{\kappa-1} W_q\, x_{t - q\nu},
+\qquad
+y = \ReLU\Big( x + \ReLU\big( W^{(2)} \ast_\nu \ReLU(W^{(1)} \ast_\nu x) \big) \Big),
+\end{equation}
+pour $\nu \in \{1, 2, 4, 8, 16\}$. Avec deux convolutions par bloc, le champ réceptif vaut
+\begin{equation}\label{eq:champ}
+R = 1 + 2(\kappa - 1) \sum_b \nu_b = 1 + 4 \times 31 = 125~\text{heures},
+\end{equation}
+au-delà de la fenêtre de 48 heures : la dernière sortie voit toute la fenêtre.
+
+\intertitre{Fusion et tête de survie}
+L'état final $e = h_{48}$ (ou la dernière sortie du TCN) est concaténé à l'encodage statique, puis projeté sur les $K \times H$ logits :
+\begin{equation}\label{eq:tete}
+u = W_2\, \ReLU\Big( W_1 \big[ e \,;\, \ReLU(W_s x^{\mathrm{st}} + b_s) \big] + b_1 \Big) + b_2, \qquad \dim(W_s x^{\mathrm{st}}) = 32, \quad \dim(W_1 \cdot) = 64.
+\end{equation}
+\source{src/spareparts/predict/models.py (GRUNet, LSTMNet, TCNNet, SurvivalHead)}
+
+\subsection{Référence LightGBM}
+
+Sur chaque fenêtre $w \in \{3, 24, 48\}$ heures, moyenne et écart-type pondérés par l'indicateur de marche $m_t$, complétés par la fraction de marche sur 24~h et le vecteur statique :
+\begin{equation}\label{eq:variables-lgbm}
+\bar{z}^{(w)} = \frac{\sum_{t} m_t\, z_t}{\max(\sum_t m_t, 1)},
+\qquad
+s^{(w)} = \sqrt{\frac{\sum_t m_t\, (z_t - \bar{z}^{(w)})^2}{\max(\sum_t m_t, 1)}}.
+\end{equation}
+Un classifieur par composant et par horizon (1 et 7 jours) minimise la perte logistique pondérée par boosting de gradient :
+\begin{equation}\label{eq:boosting}
+\mathcal{L} = \sum_n \omega_n \big[ -y_n \ln \hat{p}_n - (1 - y_n) \ln (1 - \hat{p}_n) \big], \quad
+\hat{p}_n = \sigma\big(F_M(x_n)\big), \quad
+F_m = F_{m-1} + \nu_b f_m,
+\end{equation}
+avec $\omega_n = 10$ pour les pannes et 1 sinon, $\nu_b = 0{,}05$ et $M = 200$ arbres de 15 feuilles. Chaque arbre $f_m$ est ajusté au second ordre : pour une feuille $j$, de gradients $g_n = \omega_n(\hat{p}_n - y_n)$ et de hessiens $\eta_n = \omega_n \hat{p}_n(1 - \hat{p}_n)$, la valeur optimale est $-\sum_{n \in j} g_n / \sum_{n \in j} \eta_n$.
+\source{src/spareparts/predict/dataset.py (tabular_features) ; src/spareparts/predict/training.py (train_lightgbm)}
+
+\subsection{Métriques}
+
+Pour un seuil $s$ appliqué au score $\hat{p}$ :
+\begin{equation}\label{eq:f1}
+\mathrm{P} = \frac{\mathrm{VP}}{\mathrm{VP} + \mathrm{FP}}, \qquad
+\mathrm{R} = \frac{\mathrm{VP}}{\mathrm{VP} + \mathrm{FN}}, \qquad
+\mathrm{F1} = \frac{2\,\mathrm{P}\,\mathrm{R}}{\mathrm{P} + \mathrm{R}}, \qquad
+s^{\star} = \argmax_s \mathrm{F1}_{\mathrm{validation}}(s).
+\end{equation}
+L'aire sous la courbe précision-rappel est calculée comme la précision moyenne, à comparer à la proportion de pannes $\bar{y}$ (0,13~\% à 24~h sur données simulées, 2,1~\% sur Azure) :
+\begin{equation}\label{eq:prauc}
+\mathrm{AP} = \sum_{n} (\mathrm{R}_n - \mathrm{R}_{n-1})\, \mathrm{P}_n.
+\end{equation}
+Calibration, sur dix tranches $\mathcal{B}_b$ de largeur 0,1 de la probabilité prédite :
+\begin{equation}\label{eq:brier}
+\mathrm{Brier} = \frac{1}{N} \sum_{n} (\hat{p}_n - y_n)^2,
+\qquad
+\mathrm{ECE} = \sum_{b=1}^{10} \frac{|\mathcal{B}_b|}{N}\, \Big| \frac{1}{|\mathcal{B}_b|}\sum_{n \in \mathcal{B}_b} y_n - \frac{1}{|\mathcal{B}_b|}\sum_{n \in \mathcal{B}_b} \hat{p}_n \Big|.
+\end{equation}
+Indice de concordance entre le risque à 7 jours et la durée observée $T_n$ ($b_n$ en cas de panne, $c_n$ sinon), avec $\delta_n = \ind[b_n \geq 0]$ :
+\begin{equation}\label{eq:cindex}
+C = \frac{\sum_{n,n'} \delta_n\, \ind[T_n < T_{n'}] \big( \ind[F_n(7) > F_{n'}(7)] + \tfrac{1}{2} \ind[F_n(7) = F_{n'}(7)] \big)}{\sum_{n,n'} \delta_n\, \ind[T_n < T_{n'}]}.
+\end{equation}
+Le réseau retenu pour P3 et pour l'observation des agents est celui de plus grande AP à 7 jours.
+\source{src/spareparts/predict/training.py (classification_metrics, classification_curve, _concordance) ; src/spareparts/predict/inference.py}
+
+% ================================================================ 8
+\section{Apprentissage par renforcement}\label{sec:rl}
+
+\subsection{Observation}
+
+Toutes les grandeurs sont normalisées par des constantes du scénario puis bornées à $[-5, 5]$. Le résumé de la flotte comprend, avec $S^0_p$ le niveau de référence et $\mathcal{M}^{\OP}$ les machines opérationnelles :
+\begin{equation}\label{eq:obs-stock}
+\Big( \frac{I_p}{S^0_p},\; \frac{O_p}{S^0_p},\; \frac{B_p}{5},\; \frac{\IP_p}{S^0_p} \Big)_{p},
+\qquad
+\Big( \overline{\rho}_{\cdot k},\; \overline{\ind[\rho_{\cdot k} \geq 0{,}8]},\; \overline{\ind[\rho_{\cdot k} \geq 1]},\; \tfrac{1}{2} \max \rho_{\cdot k} \Big)_{k} \text{ sur } \mathcal{M}^{\OP},
+\end{equation}
+\begin{equation}\label{eq:obs-flotte}
+\Big( \tfrac{|\mathcal{M}^{\OP}|}{M},\; 10\, \overline{\ind[\text{att. pièce}]},\; 10\, \overline{\ind[\text{att. tech.}]},\; \tfrac{F}{n_{\mathrm{tech}}},\; 20\, \overline{\hat{q}},\; \tfrac{1}{5} \overline{N^{\mathrm{al}}},\; \tfrac{\tau}{365} \Big),
+\end{equation}
+et, selon les options, le risque $\big(10\, \overline{F_{\cdot k}(3)},\, \max F_{\cdot k}(3)\big)_k$ et la dérive $\big(\overline{\zeta_{\cdot k}}/3,\, \max \zeta_{\cdot k}/3\big)_k$. Les dimensions s'en déduisent :
+\begin{equation}\label{eq:dim-obs}
+\begin{gathered}
+d_{\mathrm{flotte}} = 4P + 4K + 7 + 2K\,(\ind_{\mathrm{risque}} + \ind_{\mathrm{dérive}}) = 55 \quad (39 \text{ sans les deux blocs}),\\[0.2em]
+d_{\mathrm{N2}} = 55 + M(1 + 3K) = 1\,355.
+\end{gathered}
+\end{equation}
+Au niveau N2, chaque machine ajoute $\ind[\sigma_i = \OP]$, $\clip(\rho_{ik}, 0, 3)/2$, $\clip(10\, F_{ik}(3), 0, 5)$ et $\clip(\zeta_{ik}/3, -5, 5)$.
+\source{src/spareparts/envs/codecs.py (fleet_features, machine_features, fleet_features_template)}
+
+\subsection{Espaces d'action et masques}
+
+\begin{equation}\label{eq:espaces}
+|\mathcal{A}_{\mathrm{réduit}}| = 6 \times 6 = 36,
+\qquad
+|\mathcal{A}_{\mathrm{N1}}| = 6^{K} \cdot 6^{P} = 6^8 = 1\,679\,616,
+\end{equation}
+\begin{equation}\label{eq:espace-n2}
+|\mathcal{A}_{\mathrm{N2}}| = \prod_{p} (2 S^0_p + 1) \cdot 3^{P} \cdot (K+1)^{M} = 33 \cdot 33 \cdot 11 \cdot 7 \cdot 3^4 \cdot 5^{100} \approx 5{,}4 \times 10^{76},
+\end{equation}
+soit $2P + M = 108$ dimensions et $\sum_d n_d = 596$ options. Au niveau N2, le remplacement du composant $k$ de la machine $i$ n'est proposé que si
+\begin{equation}\label{eq:masque}
+\mu_{ik} = \ind[\sigma_i = \OP]\; \ind\big[I_{p(i,k)} > 0\big]\; \ind[\rho_{ik} \geq 0{,}5]\; \ind[F > 0]\; \big( \ind[F_{ik}(3) \geq r_{\min}] \text{ si un seuil est fixé} \big).
+\end{equation}
+Une action masquée reçoit le logit $-10^{8}$, ce qui donne, dimension par dimension, la loi
+\begin{equation}\label{eq:softmax-masque}
+\begin{gathered}
+\pi_d(a \mid o) = \frac{\mu_{d,a}\, e^{u_{d,a}}}{\sum_{a'} \mu_{d,a'}\, e^{u_{d,a'}}},\\[0.3em]
+\pi(a \mid o) = \prod_{d} \pi_d(a_d \mid o),
+\quad
+\ln \pi(a \mid o) = \sum_d \ln \pi_d(a_d \mid o),
+\quad
+\mathcal{H}(\pi) = -\sum_d \sum_a \pi_d(a)\, \ln \pi_d(a).
+\end{gathered}
+\end{equation}
+\source{src/spareparts/envs/codecs.py (Level2Codec) ; src/spareparts/rl/padded.py}
+
+\subsection{Biais initial vers l'inaction}
+
+Avant apprentissage, un biais $b_d$ est ajouté au logit de l'option 0 (« ne rien faire ») de chaque dimension : $b_d = 4$ pour les commandes et les urgences, $5$ pour les machines. Les autres logits étant voisins de zéro, l'option 0 a pour probabilité initiale
+\begin{equation}\label{eq:prior}
+\pi_d(0) \approx \frac{e^{b_d}}{e^{b_d} + n_d - 1}
+\quad\Rightarrow\quad
+\begin{cases}
+\text{machine } (n_d = 5) : & 0{,}974,\\
+\text{commande de roulements } (n_d = 33) : & 0{,}63,\\
+\text{urgence } (n_d = 3) : & 0{,}965.
+\end{cases}
+\end{equation}
+Un agent non biaisé enverrait en maintenance quatre machines sur cinq ; le biais ramène ce nombre à environ $100 \times 0{,}026 \approx 2{,}6$ machines par jour.
+\source{src/spareparts/envs/codecs.py (inaction_prior)}
+
+\subsection{MaskablePPO (P4 et P5)}
+
+Avec le rapport de probabilités $\varrho_t(\theta) = \pi_\theta(a_t \mid o_t) / \pi_{\theta_{\mathrm{old}}}(a_t \mid o_t)$ et les avantages estimés par GAE :
+\begin{align}
+\delta_t &= \tilde{r}_t + \gamma\, V_\phi(o_{t+1}) - V_\phi(o_t), \qquad
+\hat{A}_t = \sum_{l \geq 0} (\gamma\lambda)^{l}\, \delta_{t+l}, \qquad
+\hat{G}_t = \hat{A}_t + V_\phi(o_t), \label{eq:gae}\\
+\mathcal{L}^{\mathrm{CLIP}} &= \hat{\E}_t\Big[ \min\big( \varrho_t \hat{A}_t,\; \clip(\varrho_t, 1-\epsilon, 1+\epsilon)\, \hat{A}_t \big) \Big], \label{eq:ppo-clip}\\
+\mathcal{L}^{\mathrm{PPO}} &= -\mathcal{L}^{\mathrm{CLIP}} + c_V\, \hat{\E}_t\big[ (\hat{G}_t - V_\phi(o_t))^2 \big] - c_H\, \hat{\E}_t\big[ \mathcal{H}(\pi_\theta(\cdot \mid o_t)) \big]. \label{eq:ppo}
+\end{align}
+Les avantages sont centrés et réduits dans chaque lot. Valeurs : $\gamma = 0{,}995$, $\lambda = 0{,}95$, $\epsilon = 0{,}2$, $c_V = 0{,}5$, $c_H = 0{,}01$ (P4) ou $0$ (P5), pas $3 \times 10^{-4}$, huit environnements de 365 pas entre deux mises à jour, lots de 730 transitions, dix passes par mise à jour, norme du gradient bornée à 0,5. La qualité du critique se lit sur la variance expliquée
+\begin{equation}\label{eq:variance-expliquee}
+\mathrm{VE} = 1 - \frac{\Var(\hat{G} - V_\phi)}{\Var(\hat{G})}.
+\end{equation}
+Le curriculum allonge l'épisode à la fin de chaque collecte, et le modèle conservé est celui du meilleur coût annuel équivalent, moyenné sur au moins 30 épisodes récents de retours $R_e$ et de longueurs $\ell_e$ :
+\begin{equation}\label{eq:curriculum}
+\begin{gathered}
+T_{\mathrm{ép}}(n) = \operatorname{arrondi}\Big( 90 + (365 - 90) \min\Big(1, \frac{n}{N_{\mathrm{tot}}}\Big) \Big),\\[0.3em]
+\hat{J}_{\mathrm{an}} = \frac{1}{|\mathcal{E}|} \sum_{e \in \mathcal{E}} \frac{R_e}{\ell_e} \times 365,
+\qquad
+\hat{C}_{\mathrm{an}} = -150\, \hat{J}_{\mathrm{an}}.
+\end{gathered}
+\end{equation}
+Parmi les trois graines d'entraînement, la graine retenue est celle du plus faible coût annuel moyen sur cinq graines de validation. En exécution, l'agent joue le mode $a_d = \argmax_a \pi_d(a)$ ou tire ses actions par l'astuce de Gumbel \eqref{eq:gumbel}, selon le meilleur coût sur les graines de réglage.
+\source{scripts/train_rl.py (build_model, curriculum_scheduler, best_model_saver) ; scripts/choose_agent_mode.py}
+
+\subsection{DQN au niveau réduit}
+
+\begin{equation}\label{eq:dqn}
+\begin{gathered}
+y = r + \gamma\, (1 - \mathrm{fin})\, \max_{a'} Q_{\phi^-}(o', a'),
+\qquad
+\mathcal{L}^{\mathrm{DQN}} = \hat{\E}\big[ \mathrm{Huber}_1\big(y - Q_\phi(o, a)\big) \big],\\[0.3em]
+\mathrm{Huber}_1(e) = \begin{cases} \tfrac{1}{2} e^2 & \text{si } |e| \leq 1,\\ |e| - \tfrac{1}{2} & \text{sinon,} \end{cases}
+\end{gathered}
+\end{equation}
+\begin{equation}\label{eq:epsilon}
+\varepsilon(n) = \varepsilon_0 + (\varepsilon_1 - \varepsilon_0) \min\Big( 1, \frac{n}{f_\varepsilon\, N_{\mathrm{tot}}} \Big),
+\end{equation}
+avec $\varepsilon_0 = 1$, $\varepsilon_1 = 0{,}05$, $f_\varepsilon = 0{,}1$, $\gamma = 0{,}99$, pas $3 \times 10^{-4}$, mémoire de 200\,000 transitions, réseau de deux couches de 64 neurones et 300\,000 pas.
+\source{scripts/train_rl.py (build_model)}
+
+\subsection{Branching Dueling Q-Network (niveau N2)}
+
+Une valeur d'état commune et une tête d'avantages par dimension $d$ de l'action, centrée sur les options valides $\mathcal{V}_d$ :
+\begin{equation}\label{eq:bdq}
+Q_d(o, a) = V(o) + A_d(o, a) - \frac{1}{|\mathcal{V}_d|} \sum_{a' \in \mathcal{V}_d} A_d(o, a'),
+\qquad Q_d(o, a) = -10^{9} \text{ si } a \notin \mathcal{V}_d.
+\end{equation}
+La cible suit le double DQN, moyennée sur les $D = 108$ branches :
+\begin{equation}\label{eq:bdq-cible}
+\begin{gathered}
+a^{\star}_d = \argmax_{a} Q_d(o', a; \phi),
+\qquad
+y_d = r_d + \gamma\, (1 - \mathrm{fin}) \frac{1}{D} \sum_{d'=1}^{D} Q_{d'}\big(o', a^{\star}_{d'}; \phi^-\big),\\[0.3em]
+\mathcal{L}^{\mathrm{BDQ}} = \frac{1}{B D} \sum_{n=1}^{B} \sum_{d=1}^{D} \big( Q_d(o_n, a_{nd}) - y_{nd} \big)^2.
+\end{gathered}
+\end{equation}
+Sans récompense par branche, $r_d = r$ pour toutes les branches. Avec l'option, chaque branche reçoit le coût $\kappa_d$ qui lui est attribuable (achat et stockage de sa référence, surprime d'urgence, ou arrêt, main-d'œuvre, corrective et révision de sa machine), le résidu étant réparti également :
+\begin{equation}\label{eq:recompense-branche}
+r_d = -\frac{1}{150} \Big( \kappa_d + \frac{C_\tau - \sum_{d'} \kappa_{d'}}{D} \Big),
+\qquad
+\sum_{d} r_d = -\frac{C_\tau}{150} = r_\tau.
+\end{equation}
+Exploration branche par branche : avec la probabilité $\varepsilon(n)$ de \eqref{eq:epsilon} ($\varepsilon_0 = 1$, $\varepsilon_1 = 0{,}05$, $f_\varepsilon = 0{,}3$), l'option est tirée selon la loi du biais initial par $a_d = \argmax_{a \in \mathcal{V}_d} (b_{d,a} + G_a)$. Réglages : $\gamma = 0{,}99$, pas $10^{-4}$, lots de 64, une mise à jour tous les quatre pas après 2\,000 pas, réseau cible recopié tous les 1\,000 pas, norme du gradient bornée à 10, mémoire de 100\,000 transitions, tronc de deux couches de 256 neurones, 200\,000 pas.
+\source{src/spareparts/rl/bdq.py ; src/spareparts/envs/fleet_env.py (_branch_reward)}
+
+\subsection{Randomisation des scénarios (option)}
+
+Lorsque l'option est active, chaque épisode tire ses paramètres :
+\begin{equation}\label{eq:randomisation}
+f_L \sim \Unif(0{,}5 ; 2), \qquad c \sim \Unif(0{,}6 ; 1{,}8), \qquad n_{\mathrm{tech}} = \operatorname{arrondi}\big(\Unif(1 ; 4)\big).
+\end{equation}
+\source{src/spareparts/envs/fleet_env.py (RANDOMIZATION_RANGES, _sample_overrides)}
+
+\subsection{Plancher de représentation}
+
+Le plancher d'un espace d'action $\mathcal{A}$ est le coût de sa meilleure politique constante $\pi_a$, qui joue la même action $a$ toute l'année, évalué sur les trente graines d'évaluation. L'écart d'un agent à P1 se décompose exactement :
+\begin{equation}\label{eq:plancher}
+C_{\mathrm{plancher}}(\mathcal{A}) = \min_{a \in \mathcal{A}} \hat{J}_{30}(\pi_a),
+\qquad
+\underbrace{C_{\mathrm{agent}} - C_{\mathrm{P1}}}_{\text{écart observé}}
+= \underbrace{C_{\mathrm{agent}} - C_{\mathrm{plancher}}}_{\text{apprentissage}}
++ \underbrace{C_{\mathrm{plancher}} - C_{\mathrm{P1}}}_{\text{représentation}}.
+\end{equation}
+Le minimum est exact pour l'espace réduit (36 actions énumérées). Pour N1, une montée de coordonnée depuis quatre départs remplace à chaque balayage une coordonnée par la meilleure de ses six valeurs,
+\begin{equation}\label{eq:montee}
+a_d \leftarrow \argmin_{v \in \{0, \dots, 5\}} \hat{J}_{30}\big(\pi_{(a_1, \dots, a_{d-1}, v, a_{d+1}, \dots)}\big),
+\end{equation}
+et fournit un majorant réalisable du plancher. Pour P4 : $662 = 2\,614 - 1\,952$~UR.
+\source{scripts/action_space_floor.py (floor_reduced, floor_n1, decomposition)}
+
+% ================================================================ 9
+\section{Évaluation statistique}\label{sec:statistiques}
+
+\subsection{Moyennes et intervalles de confiance}
+
+Pour un indicateur mesuré sur $n$ années :
+\begin{equation}\label{eq:ic}
+\bar{x} = \frac{1}{n} \sum_j x_j, \qquad
+s^2 = \frac{1}{n-1} \sum_j (x_j - \bar{x})^2, \qquad
+\mathrm{IC}_{95} = \bar{x} \pm t_{0{,}975,\, n-1} \frac{s}{\sqrt{n}}, \qquad t_{0{,}975,\, 29} = 2{,}045.
+\end{equation}
+\source{src/spareparts/evaluation.py (summarize)}
+
+\subsection{Test de Wilcoxon apparié}
+
+Sur les écarts $d_j = C(\pi, \omega_j) - C(\pi_{\mathrm{P1}}, \omega_j)$, non nuls, rangés par valeur absolue :
+\begin{equation}\label{eq:wilcoxon}
+W^{+} = \sum_{j : d_j > 0} \operatorname{rang}(|d_j|), \qquad
+W = \min(W^{+}, W^{-}), \qquad
+Z = \frac{W^{+} - n(n+1)/4}{\sqrt{n(n+1)(2n+1)/24}}.
+\end{equation}
+La valeur $p$ bilatérale est calculée par la loi exacte de $W$ pour $n = 30$ sans ex æquo, par l'approximation normale de $Z$ sinon. La plus petite valeur possible, $2/2^{30} \approx 1{,}86 \times 10^{-9}$, est celle qu'obtiennent les politiques dont les trente écarts ont le même signe.
+\source{scripts/evaluate_policies.py (wilcoxon)}
+
+\subsection{Test d'équivalence TOST}
+
+Avec la marge $\delta = 0{,}02\, \bar{C}_{\mathrm{P1}}$, la moyenne $\bar{d}$ et l'erreur type $\mathrm{ET} = s_d / \sqrt{n}$ des écarts appariés :
+\begin{align}
+p_{\mathrm{pas\,pire}} &= F_{t,\, n-1}\Big( \frac{\bar{d} - \delta}{\mathrm{ET}} \Big) & &(H_0 : \mu_d \geq \delta), \label{eq:tost1}\\
+p_{\mathrm{pas\,meilleur}} &= 1 - F_{t,\, n-1}\Big( \frac{\bar{d} + \delta}{\mathrm{ET}} \Big) & &(H_0 : \mu_d \leq -\delta). \label{eq:tost2}
+\end{align}
+Au seuil de 5~\% : « équivalent » si les deux valeurs sont sous 0,05, « meilleur » si seule $p_{\mathrm{pas\,pire}}$ l'est, « moins bon » si seule $p_{\mathrm{pas\,meilleur}}$ l'est, « non concluant » sinon.
+\source{scripts/evaluate_policies.py (tost)}
+
+\subsection{Robustesse : effets appariés}
+
+Pour une situation dégradée et une politique, sur les mêmes graines qu'au nominal :
+\begin{equation}\label{eq:dz}
+\Delta_j = C^{\mathrm{dégradé}}_j - C^{\mathrm{nominal}}_j, \qquad
+\text{variation} = \frac{\bar{\Delta}}{\bar{C}^{\mathrm{nominal}}}, \qquad
+\mathrm{IC} = \bar{\Delta} \pm t_{0{,}975,\, n-1} \frac{s_\Delta}{\sqrt{n}}, \qquad
+d_z = \frac{\bar{\Delta}}{s_\Delta}.
+\end{equation}
+\source{src/spareparts/evaluation.py (paired_effects)}
+
+\subsection{Généralisation à d'autres compositions de flotte}
+
+Les parts des $k = 2$ familles sont tirées autour de la composition nominale $\pi^0$, puis mélangées à la loi uniforme pour que chaque famille garde au moins 10~\% :
+\begin{equation}\label{eq:dirichlet}
+w \sim \mathrm{Dir}(2\, \pi^0), \qquad
+\pi = (1 - \alpha_m)\, w + \frac{\alpha_m}{k}, \quad \alpha_m = 0{,}1\, k = 0{,}2, \qquad
+n_{\mathrm{tech}} \sim \Unif\{1, 2, 3\}.
+\end{equation}
+Le classement des politiques par coût moyen (rangs moyens en cas d'ex æquo) est comparé au classement nominal par le tau de Kendall :
+\begin{equation}\label{eq:kendall}
+\tau_b = \frac{n_c - n_d}{\sqrt{(n_0 - n_1)(n_0 - n_2)}}, \qquad n_0 = \frac{n(n-1)}{2},
+\end{equation}
+où $n_c$ et $n_d$ comptent les paires concordantes et discordantes, $n_1$ et $n_2$ les paires ex æquo de chaque classement. L'ordre attendu par le cahier des charges est vérifié comme la chaîne $\bar{C}_{\mathrm{P2}} < \bar{C}_{\mathrm{P3}} < \bar{C}_{\mathrm{P1}} < \min_{\text{agents}} \bar{C}$.
+\source{src/spareparts/sim/fleets.py (sample_compositions) ; scripts/generalize_ranking.py}
+
+% ================================================================ 10
+\section{Modèle de substitution et sensibilité}\label{sec:substitution}
+
+\subsection{Plan d'expériences}
+
+Cinq paramètres, $x = (n_{\mathrm{tech}}, f_L, c, f_{\mathrm{PM}}, \varphi_S)$, sont tirés en hypercube latin dans $[1, 4] \times [0{,}5 ; 2{,}5] \times [0{,}6 ; 1{,}8] \times [0{,}5 ; 1{,}6] \times [0{,}5 ; 3]$ :
+\begin{equation}\label{eq:lhs}
+u_{nj} = \frac{\varsigma_j(n) + U_{nj}}{N}, \qquad
+x_{nj} = \mathrm{lo}_j + u_{nj}\, (\mathrm{hi}_j - \mathrm{lo}_j),
+\end{equation}
+où $\varsigma_j$ est une permutation aléatoire de $\{0, \dots, N-1\}$ et $U_{nj} \sim \Unif(0,1)$ ; l'effectif est arrondi à l'entier. Le facteur de stock fixe les seuils de la politique à seuils fixes :
+\begin{equation}\label{eq:facteur-stock}
+S_p = \max\big(1,\, \operatorname{arrondi}(\varphi_S\, S^0_p)\big), \qquad
+s_p = \min\big( \max(0,\, \operatorname{arrondi}(\varphi_S\, s^0_p)),\; S_p - 1 \big).
+\end{equation}
+Chacun des $N = 2\,000$ scénarios est simulé cinq fois sur 180 jours ; ses sorties sont les moyennes de six indicateurs (coût, TRS, disponibilité, ruptures, attente de pièce, pannes).
+\source{src/spareparts/surrogate/doe.py ; scripts/train_surrogate.py}
+
+\subsection{Ensemble de réseaux}
+
+Entrées ramenées à $[-1, 1]$, sorties centrées et réduites :
+\begin{equation}\label{eq:mise-echelle}
+\tilde{x} = 2\, \frac{x - \mathrm{lo}}{\mathrm{hi} - \mathrm{lo}} - 1, \qquad
+\tilde{y} = \frac{y - \bar{y}}{s_y + 10^{-8}}.
+\end{equation}
+Chaque membre est un perceptron à deux couches cachées de 64 neurones, entraîné en erreur quadratique :
+\begin{equation}\label{eq:mlp}
+\begin{gathered}
+f_m(\tilde{x}) = W_3\, \SiLU\big( W_2\, \SiLU(W_1 \tilde{x} + b_1) + b_2 \big) + b_3, \qquad
+\SiLU(v) = v\, \sigma(v),\\[0.3em]
+\mathcal{L}_m = \frac{1}{|\mathcal{B}|} \sum_{n \in \mathcal{B}} \big\| f_m(\tilde{x}_n) - \tilde{y}_n \big\|^2,
+\end{gathered}
+\end{equation}
+avec Adam (pas $3 \times 10^{-3}$, pénalité $10^{-5}$), un pas décroissant en cosinus \eqref{eq:cosinus} sur 600 époques et des lots de 128. Les cinq membres, initialisés différemment, donnent une moyenne et une dispersion :
+\begin{equation}\label{eq:ensemble}
+\hat{\mu}(x) = \frac{1}{5} \sum_{m=1}^{5} f_m(x), \qquad
+\hat{\sigma}(x) = \sqrt{\frac{1}{5} \sum_{m=1}^{5} \big( f_m(x) - \hat{\mu}(x) \big)^2 }.
+\end{equation}
+\source{src/spareparts/surrogate/model.py (DeepEnsemble)}
+
+\subsection{Qualité et modèles de comparaison}
+
+Sur 20~\% de scénarios tenus à l'écart :
+\begin{equation}\label{eq:r2}
+R^2 = 1 - \frac{\sum_n (y_n - \hat{y}_n)^2}{\sum_n (y_n - \bar{y})^2}, \qquad
+\mathrm{MAPE} = \frac{1}{|\mathcal{N}^{\ast}|} \sum_{n \in \mathcal{N}^{\ast}} \Big| \frac{y_n - \hat{y}_n}{y_n} \Big|, \quad \mathcal{N}^{\ast} = \{ n : |y_n| > 10^{-6} \}.
+\end{equation}
+Le processus gaussien de comparaison utilise un noyau gaussien à longueurs propres et un bruit blanc :
+\begin{equation}\label{eq:gp}
+k(x, x') = \sigma_f^2 \exp\Big( -\frac{1}{2} \sum_j \frac{(x_j - x'_j)^2}{\ell_j^2} \Big) + \sigma_n^2\, \ind[x = x'], \qquad
+\hat{\mu}(x_\ast) = k_\ast^{\top} (K + 10^{-6} I)^{-1} y.
+\end{equation}
+Le second modèle de comparaison est un LightGBM de 400 arbres de 31 feuilles, de pas 0,05.
+\source{src/spareparts/surrogate/model.py (score) ; scripts/train_surrogate.py}
+
+\subsection{Indices de Sobol}
+
+La variance du coût se décompose en contributions des paramètres et de leurs interactions :
+\begin{equation}\label{eq:sobol}
+\Var(Y) = \sum_i V_i + \sum_{i<j} V_{ij} + \dots, \qquad
+S_i = \frac{\Var\big( \E[Y \mid X_i] \big)}{\Var(Y)}, \qquad
+S_{Ti} = \frac{\E\big[ \Var(Y \mid X_{\sim i}) \big]}{\Var(Y)}.
+\end{equation}
+Avec deux matrices d'échantillons $A$ et $B$ de $N = 2\,048$ lignes et $A_B^{(i)}$ la matrice $A$ dont la colonne $i$ est prise dans $B$, les estimateurs de Saltelli et de Jansen sont
+\begin{equation}\label{eq:saltelli}
+\hat{S}_i = \frac{\frac{1}{N} \sum_n f(B)_n \big( f(A_B^{(i)})_n - f(A)_n \big)}{\widehat{\Var}(Y)}, \qquad
+\hat{S}_{Ti} = \frac{\frac{1}{2N} \sum_n \big( f(A)_n - f(A_B^{(i)})_n \big)^2}{\widehat{\Var}(Y)},
+\end{equation}
+pour $N(D+2) = 2\,048 \times 7 = 14\,336$ évaluations du modèle de substitution. Une somme des $S_{Ti}$ supérieure à 1 signale des interactions.
+\source{scripts/sensitivity.py}
+
+\subsection{Optimisation bayésienne de P1}
+
+L'échantillonneur TPE d'Optuna minimise le coût prédit $\hat{\mu}(f_{\mathrm{PM}}, \varphi_S)$ à système nominal. Il sépare les essais au quantile $y^{\ast}$ de leurs coûts et propose le point qui maximise le rapport des deux densités :
+\begin{equation}\label{eq:tpe}
+l(x) = p(x \mid y < y^{\ast}), \qquad g(x) = p(x \mid y \geq y^{\ast}), \qquad
+x_{\mathrm{suivant}} = \argmax_x \frac{l(x)}{g(x)}.
+\end{equation}
+Le candidat retenu est vérifié sur le simulateur, aux graines de la recherche aléatoire, et n'est conservé que s'il fait mieux que \eqref{eq:p1-optimum}.
+\source{scripts/optimize_surrogate.py}
+
+% ================================================================ 11
+\section{Outils numériques communs}\label{sec:outils}
+
+\intertitre{Fonctions d'activation et lois catégorielles}
+\begin{equation}\label{eq:sigmoide}
+\begin{gathered}
+\sigma(v) = \frac{1}{1 + e^{-v}}, \qquad
+\ln\big(1 - \sigma(v)\big) = \ln \sigma(-v),\\[0.3em]
+\mathrm{softmax}(u)_a = \frac{e^{u_a}}{\sum_{a'} e^{u_{a'}}} = \exp\big( u_a - \operatorname{logsumexp}(u) \big), \qquad \operatorname{logsumexp}(u) = \ln \sum_{a'} e^{u_{a'}}.
+\end{gathered}
+\end{equation}
+
+\intertitre{Astuce de Gumbel}
+Tirer une option selon la loi $\pi$ revient à prendre le maximum des log-probabilités bruitées :
+\begin{equation}\label{eq:gumbel}
+a = \argmax_{a'} \big( \ln \pi(a') + G_{a'} \big), \qquad G_{a'} = -\ln(-\ln U_{a'}), \quad U_{a'} \sim \Unif(0,1).
+\end{equation}
+
+\intertitre{Adam}
+Pour le gradient $g_t$, avec $\beta_1 = 0{,}9$, $\beta_2 = 0{,}999$, $\epsilon = 10^{-8}$ et, le cas échéant, une pénalité $\lambda$ ajoutée au gradient ($g_t \leftarrow g_t + \lambda \theta_{t-1}$) :
+\begin{equation}\label{eq:adam}
+m_t = \beta_1 m_{t-1} + (1-\beta_1) g_t, \quad
+v_t = \beta_2 v_{t-1} + (1-\beta_2) g_t^2, \quad
+\theta_t = \theta_{t-1} - \eta\, \frac{m_t / (1 - \beta_1^t)}{\sqrt{v_t / (1 - \beta_2^t)} + \epsilon}.
+\end{equation}
+
+\intertitre{Pas en cosinus et bornage du gradient}
+\begin{equation}\label{eq:cosinus}
+\eta_e = \frac{\eta_0}{2} \Big( 1 + \cos \frac{\pi e}{E} \Big), \qquad
+g \leftarrow g \cdot \min\Big( 1, \frac{c_{\max}}{\|g\|_2} \Big).
+\end{equation}
+\source{src/spareparts/surrogate/model.py ; src/spareparts/rl/bdq.py ; src/spareparts/rl/padded.py}
+
+\end{document}
