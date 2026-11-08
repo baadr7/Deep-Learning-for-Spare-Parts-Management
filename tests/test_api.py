@@ -235,3 +235,58 @@ def test_live_stream_rejects_out_of_range_parameters(client):
             ws.send_json({"policy": "P0", "days": 731})
             ws.receive_json()
     assert exc.value.code == 1008
+
+
+def test_the_simulation_pool_is_bounded():
+    from spareparts.api import app as api
+
+    # Un travailleur par cœur épuise la mémoire virtuelle : les enfants meurent au chargement
+    # des DLL natives. Le dimensionnement doit rester borné.
+    assert api.MAX_WORKERS <= 4
+    assert api._executor()._max_workers == api.MAX_WORKERS
+
+
+def test_a_broken_pool_is_discarded():
+    from spareparts.api import app as api
+
+    api._executor()
+    assert api._pool is not None
+    api._abandon_pool()
+    assert api._pool is None
+
+
+def test_a_broken_pool_is_replaced_and_the_request_replayed(client, monkeypatch):
+    from concurrent.futures.process import BrokenProcessPool
+
+    from spareparts.api import app as api
+
+    calls = {"n": 0}
+    real_dispatch = api._dispatch_replications
+
+    async def flaky(*args, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise BrokenProcessPool("enfant mort")
+        return await real_dispatch(*args, **kwargs)
+
+    monkeypatch.setattr(api, "_dispatch_replications", flaky)
+    body = {"policies": ["P0"], "replications": 2, "days": 30}
+    res = client.post("/api/compare", json=body)
+    # Le pool cassé est remplacé et la requête rejouée : aucun 500 ne remonte à l'interface.
+    assert res.status_code == 200
+    assert len(res.json()["results"]["P0"]["runs"]) == 2
+    assert calls["n"] == 2
+
+
+def test_a_persistent_pool_failure_is_reported_as_503(client, monkeypatch):
+    from concurrent.futures.process import BrokenProcessPool
+
+    from spareparts.api import app as api
+
+    async def always_broken(*args, **kwargs):
+        raise BrokenProcessPool("enfant mort")
+
+    monkeypatch.setattr(api, "_dispatch_replications", always_broken)
+    res = client.post("/api/compare", json={"policies": ["P0"], "replications": 1, "days": 30})
+    assert res.status_code == 503
+    assert "mémoire insuffisante" in res.json()["detail"]

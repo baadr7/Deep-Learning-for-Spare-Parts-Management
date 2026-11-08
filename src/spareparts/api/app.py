@@ -7,9 +7,11 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import os
 import uuid
 from collections import OrderedDict
 from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures.process import BrokenProcessPool
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,6 +36,10 @@ app.add_middleware(
 
 MAX_RUNS = 20
 WS_INIT_TIMEOUT_SECONDS = 30.0
+# Chaque processus enfant réimporte numpy, scipy et torch : en ouvrir un par cœur épuise la
+# mémoire virtuelle de la machine, les enfants meurent au chargement des DLL natives et le pool
+# devient inutilisable. Le nombre de travailleurs est donc borné.
+MAX_WORKERS = min(4, os.cpu_count() or 1)
 _runs: OrderedDict[str, SimulationResult] = OrderedDict()
 _pool: ProcessPoolExecutor | None = None
 
@@ -55,8 +61,20 @@ def _get_run(run_id: str) -> SimulationResult:
 def _executor() -> ProcessPoolExecutor:
     global _pool
     if _pool is None:
-        _pool = ProcessPoolExecutor()
+        _pool = ProcessPoolExecutor(max_workers=MAX_WORKERS)
     return _pool
+
+
+def _abandon_pool() -> None:
+    """Écarte un pool dont un enfant est mort.
+
+    Un pool cassé ne redevient jamais utilisable : le conserver condamne toutes les requêtes
+    ultérieures à un 500. On le remplace donc par un pool neuf.
+    """
+    global _pool
+    if _pool is not None:
+        _pool.shutdown(wait=False, cancel_futures=True)
+        _pool = None
 
 
 class Overrides(BaseModel):
@@ -172,14 +190,29 @@ def get_events(run_id: str, kind: str | None = None, limit: int = 500) -> list[d
     return jsonable(events[-limit:])
 
 
-async def _replications(scenario, policy, seeds, days, overrides) -> list[dict]:
+async def _dispatch_replications(scenario, policy, seeds, days, overrides) -> list[dict]:
     loop = asyncio.get_running_loop()
-    pool = _executor()
     jobs = [
-        loop.run_in_executor(pool, _simulate_kpis, scenario, policy, s, days, overrides)
+        loop.run_in_executor(_executor(), _simulate_kpis, scenario, policy, s, days, overrides)
         for s in seeds
     ]
     return await asyncio.gather(*jobs)
+
+
+async def _replications(scenario, policy, seeds, days, overrides) -> list[dict]:
+    try:
+        return await _dispatch_replications(scenario, policy, seeds, days, overrides)
+    except BrokenProcessPool:
+        # Un enfant est mort : le pool est définitivement cassé. On en ouvre un neuf et on
+        # rejoue une fois ; si la panne se reproduit, elle est signalée sans masquer la cause.
+        _abandon_pool()
+        try:
+            return await _dispatch_replications(scenario, policy, seeds, days, overrides)
+        except BrokenProcessPool as exc:
+            _abandon_pool()
+            raise HTTPException(
+                503, "mémoire insuffisante pour exécuter les processus de simulation"
+            ) from exc
 
 
 @app.post("/api/compare")
