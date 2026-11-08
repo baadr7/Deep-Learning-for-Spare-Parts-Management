@@ -15,9 +15,12 @@ data/processed/*
 !data/**/.gitkeep
 models/*
 !models/.gitkeep
-# Le modèle de substitution est versionné : il est léger et la tâche « Bout en bout » de
-# l'intégration continue le charge pour vérifier la page « Scénarios ».
+# Les modèles entraînés sont versionnés : la tâche « Bout en bout » de l'intégration continue
+# charge le modèle de substitution, et les métriques publiées ne sont reproductibles qu'avec
+# les agents effectivement retenus.
 !models/surrogate/
+!models/predict/
+!models/rl/
 runs/
 mlruns/
 mlflow.db
@@ -45,3 +48,6 @@ web/playwright-report/
 .DS_Store
 Thumbs.db
 .env
+
+# Documents de travail conservés hors du dépôt
+docs/formulaire/
